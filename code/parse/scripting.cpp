@@ -14,6 +14,7 @@
 #include "io/key.h"
 #include "controlconfig/controlsconfig.h"
 #include "freespace2/freespace.h"
+#include "multithread/multithread.h"
 
 //tehe. Declare the main event
 script_state Script_system("FS2_Open Scripting");
@@ -535,6 +536,7 @@ static int ohvt_poststack = 0;		//Items on the stack prior to OHVT
 static int ohvt_isopen = 0;			//Items OHVT puts on the stack
 bool script_state::OpenHookVarTable()
 {
+	HOOK_LOCK
 	if(ohvt_isopen)
 		Error(LOCATION, "OpenHookVarTable was called twice with no call to CloseHookVarTable - missing call ahoy!");
 
@@ -564,6 +566,7 @@ bool script_state::OpenHookVarTable()
 	}
 	lua_pop(LuaState, 1);	//Library
 	
+	HOOK_UNLOCK
 	return false;
 }
 
@@ -581,6 +584,7 @@ bool script_state::CloseHookVarTable()
 	{
 		lua_pop(LuaState, ohvt_isopen);
 		ohvt_isopen = 0;
+		HOOK_UNLOCK
 		return true;
 	}
 	else

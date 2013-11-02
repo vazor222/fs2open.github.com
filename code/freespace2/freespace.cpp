@@ -98,6 +98,7 @@
 #include "missionui/missionweaponchoice.h"
 #include "missionui/redalert.h"
 #include "mod_table/mod_table.h"
+#include "multithread/multithread.h"
 #include "nebula/neb.h"
 #include "nebula/neblightning.h"
 #include "network/multi.h"
@@ -982,7 +983,7 @@ void game_level_init(int seed)
 	batch_reset();
 
 	// Initialize the game subsystems
-		game_reset_time();			// resets time, and resets saved time too
+	game_reset_time();			// resets time, and resets saved time too
 
 	Multi_ping_timestamp = -1;
 
@@ -1705,6 +1706,10 @@ void game_init()
 
 	// Initialize the timer before the os
 	timer_init();
+
+#ifdef MULTITHREADING_ENABLED
+	create_threads();
+#endif
 
 	// init os stuff next
 	if ( !Is_standalone ) {		
@@ -3435,7 +3440,7 @@ camid game_render_frame_setup()
 			} else if ( Viewer_mode & VM_CHASE ) {
 				vec3d	move_dir;
 				vec3d aim_pt;
-				
+								
 				if ( Viewer_obj->phys_info.speed < 62.5f )
 					move_dir = Viewer_obj->phys_info.vel;
 				else {
@@ -5542,7 +5547,7 @@ void game_leave_state( int old_state, int new_state )
 
 			} else {
 				cmd_brief_close();
-					common_select_close();
+				common_select_close();
 				if (new_state == GS_STATE_MAIN_MENU) {
 					freespace_stop_mission();	
 				}
@@ -7249,6 +7254,9 @@ void game_shutdown(void)
 {
 	gTirDll_TrackIR.Close( );
 
+#ifdef MULTITHREADING_ENABLED
+	destroy_threads();
+#endif
 
 	fsspeech_deinit();
 #ifdef FS2_VOICER

@@ -1757,19 +1757,19 @@ int strip_comments(char *line, int in_multiline_comment)
 		// check whether major, minor, and build line up with this version
 		if (major > FS_VERSION_MAJOR)
 		{
-			goto done_with_line;
+ 			goto done_with_line;
 		}
 		else if (major == FS_VERSION_MAJOR)
 		{
-		if (minor > FS_VERSION_MINOR)
+			if (minor > FS_VERSION_MINOR)
 			{
-			goto done_with_line;
+				goto done_with_line;
 			}
 			else if (minor == FS_VERSION_MINOR)
 			{
-		if (build > FS_VERSION_BUILD)
+				if (build > FS_VERSION_BUILD)
 				{
-			goto done_with_line;
+					goto done_with_line;
 				}
 			}
 		}
@@ -3713,9 +3713,9 @@ void vsprintf(SCP_string &dest, const char *format, va_list ap)
 		buf_src_len = 1;
 		do {
 			++p;
-			if (!*p || (buf_src_len >= MAX_BUF))
+			if (!*p || (buf_src_len >= MAX_BUF-1))
 			{
-				Warning(LOCATION, "Could not find a sprintf specifier within %d characters for format '%s', pos %d!", MAX_BUF, format, (p - format));
+				Warning(LOCATION, "Could not find a sprintf specifier within %d characters for format '%s', pos %d!", MAX_BUF-1, format, (p - format));
 
 				// unsafe to continue handling this va_list
 				dest += buf_src;
@@ -3764,6 +3764,7 @@ void vsprintf(SCP_string &dest, const char *format, va_list ap)
 				pint = va_arg(ap, int *);
 				Assert(pint != NULL);
 				*pint = dest.length();
+				break;
 			}
 			case '%':
 			{

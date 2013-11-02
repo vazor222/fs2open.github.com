@@ -13,8 +13,9 @@
 #define _COLLIDESTUFF_H
 
 #include "globalincs/pstypes.h"
+#include "weapon/beam.h"
 
-struct object;
+class object;
 struct CFILE;
 struct mc_info;
 
@@ -155,4 +156,54 @@ int get_ship_quadrant_from_global(vec3d *global_pos, object *objp);
 int reject_due_collision_groups(object *A, object *B);
 
 void init_collision_info_struct(collision_info_struct *cis);
+
+void obj_collide_pair(object *A, object *B);
+
+inline float obj_get_collider_endpoint(int obj_num, int axis, bool min)
+{
+  if ( Objects[obj_num].type == OBJ_BEAM ) {
+    beam *b = &Beams[Objects[obj_num].instance];
+
+    // use the last start and last shot as endpoints
+    float min_end, max_end;
+    if ( b->last_start.a1d[axis] > b->last_shot.a1d[axis] ) {
+      min_end = b->last_shot.a1d[axis];
+      max_end = b->last_start.a1d[axis];
+    } else {
+      min_end = b->last_start.a1d[axis];
+      max_end = b->last_shot.a1d[axis];
+    }
+
+    if ( min ) {
+      return min_end;
+    } else {
+      return max_end;
+    }
+  } else if ( Objects[obj_num].type == OBJ_WEAPON ) {
+    float min_end, max_end;
+
+    if ( Objects[obj_num].pos.a1d[axis] > Objects[obj_num].last_pos.a1d[axis] ) {
+      min_end = Objects[obj_num].last_pos.a1d[axis];
+      max_end = Objects[obj_num].pos.a1d[axis];
+    } else {
+      min_end = Objects[obj_num].pos.a1d[axis];
+      max_end = Objects[obj_num].last_pos.a1d[axis];
+    }
+
+    if ( min ) {
+      return min_end - Objects[obj_num].radius;
+    } else {
+      return max_end + Objects[obj_num].radius;
+    }
+  } else {
+    vec3d *pos = &Objects[obj_num].pos;
+
+    if ( min ) {
+      return pos->a1d[axis] - Objects[obj_num].radius;
+    } else {
+      return pos->a1d[axis] + Objects[obj_num].radius;
+    }
+  }
+}
+
 #endif

@@ -1,8 +1,3 @@
-
-
-
-
-
 #include "globalincs/pstypes.h"
 #include "cmdline/cmdline.h"
 #include "osapi/osapi.h"
@@ -34,7 +29,6 @@
 #include "graphics/gropenglstate.h"
 #include "graphics/gropenglpostprocessing.h"
 
-
 #if defined(_WIN32)
 #include <windows.h>
 #include <windowsx.h>
@@ -42,9 +36,8 @@
 #elif defined(__APPLE__)
 #include "OpenGL.h"
 #else
-typedef int ( * PFNGLXSWAPINTERVALSGIPROC) (int interval);
+typedef int (*PFNGLXSWAPINTERVALSGIPROC)(int interval);
 #endif
-
 
 #if defined(_WIN32) && !defined(__GNUC__)
 #pragma comment (lib, "opengl32")
@@ -57,6 +50,8 @@ static const int MIN_REQUIRED_GL_VERSION = 12;
 int GL_version = 0;
 
 bool GL_initted = 0;
+
+unsigned int lock_number = 0;
 
 //0==no fog
 //1==linear
@@ -113,12 +108,13 @@ static int GL_minimized = 0;
 
 static GLenum GL_read_format = GL_BGRA;
 
-
 void opengl_go_fullscreen()
 {
-	if (Cmdline_fullscreen_window || Cmdline_window || GL_fullscreen || Fred_running)
+	OPENGL_LOCK;
+	if (Cmdline_fullscreen_window || Cmdline_window || GL_fullscreen || Fred_running) {
+		OPENGL_UNLOCK;
 		return;
-
+	}
 #ifdef _WIN32
 	DEVMODE dm;
 	RECT cursor_clip;
@@ -138,7 +134,7 @@ void opengl_go_fullscreen()
 	dm.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
 
 	if (dm.dmDisplayFrequency)
-		dm.dmFields |= DM_DISPLAYFREQUENCY;
+	dm.dmFields |= DM_DISPLAYFREQUENCY;
 
 	if ( (ChangeDisplaySettings(&dm, CDS_FULLSCREEN)) != DISP_CHANGE_SUCCESSFUL ) {
 		if (dm.dmDisplayFrequency) {
@@ -165,15 +161,16 @@ void opengl_go_fullscreen()
 	ClipCursor(&cursor_clip);
 	ShowCursor(FALSE);
 
-	os_resume();  
+	os_resume();
 #else
-	if ( (os_config_read_uint(NULL, NOX("Fullscreen"), 1) == 1) && !(SDL_GetVideoSurface()->flags & SDL_FULLSCREEN) ) {
+	if ((os_config_read_uint(NULL, NOX("Fullscreen"), 1) == 1) && !(SDL_GetVideoSurface()->flags & SDL_FULLSCREEN)) {
 		os_suspend();
-	//	SDL_WM_ToggleFullScreen( SDL_GetVideoSurface() );
-		if ( (SDL_SetVideoMode(gr_screen.max_w, gr_screen.max_h, 0, SDL_OPENGL | SDL_FULLSCREEN)) == NULL ) {
+		//	SDL_WM_ToggleFullScreen( SDL_GetVideoSurface() );
+		if ((SDL_SetVideoMode(gr_screen.max_w, gr_screen.max_h, 0, SDL_OPENGL | SDL_FULLSCREEN)) == NULL) {
 			mprintf(("Couldn't go fullscreen!\n"));
-			if ( (SDL_SetVideoMode(gr_screen.max_w, gr_screen.max_h, 0, SDL_OPENGL)) == NULL ) {
+			if ((SDL_SetVideoMode(gr_screen.max_w, gr_screen.max_h, 0, SDL_OPENGL)) == NULL) {
 				mprintf(("Couldn't drop back to windowed mode either!\n"));
+				OPENGL_UNLOCK;
 				exit(1);
 			}
 		}
@@ -186,12 +183,16 @@ void opengl_go_fullscreen()
 	GL_fullscreen = 1;
 	GL_minimized = 0;
 	GL_windowed = 0;
+	OPENGL_UNLOCK;
 }
 
 void opengl_go_windowed()
 {
-	if ( ( !Cmdline_fullscreen_window && !Cmdline_window ) /*|| GL_windowed*/ || Fred_running )
+	OPENGL_LOCK;
+	if ((!Cmdline_fullscreen_window && !Cmdline_window) /*|| GL_windowed*/ || Fred_running) {
+		OPENGL_UNLOCK;
 		return;
+	}
 
 #ifdef _WIN32
 	HWND wnd = (HWND)os_get_window();
@@ -205,6 +206,7 @@ void opengl_go_windowed()
 
 		ClipCursor(NULL);
 		ShowCursor(FALSE);
+		OPENGL_UNLOCK;
 		return;
 	}
 
@@ -220,15 +222,15 @@ void opengl_go_windowed()
 	ClipCursor(NULL);
 	ShowCursor(FALSE);
 
-	os_resume();  
+	os_resume();
 
 #else
 	if (SDL_GetVideoSurface()->flags & SDL_FULLSCREEN) {
 		os_suspend();
 
-	//	SDL_WM_ToggleFullScreen( SDL_GetVideoSurface() );
-		if ( (SDL_SetVideoMode(gr_screen.max_w, gr_screen.max_h, 0, SDL_OPENGL)) == NULL ) {
-			Warning( LOCATION, "Unable to enter windowed mode!" );
+		//	SDL_WM_ToggleFullScreen( SDL_GetVideoSurface() );
+		if ((SDL_SetVideoMode(gr_screen.max_w, gr_screen.max_h, 0, SDL_OPENGL)) == NULL) {
+			Warning( LOCATION, "Unable to enter windowed mode!");
 		}
 
 		os_resume();
@@ -238,14 +240,17 @@ void opengl_go_windowed()
 	GL_windowed = 1;
 	GL_minimized = 0;
 	GL_fullscreen = 0;
+	OPENGL_UNLOCK;
 }
 
 void opengl_minimize()
 {
+	OPENGL_LOCK;
 	// don't attempt to minimize if we are already in a window, or already minimized, or when playing a movie
-	if (GL_minimized /*|| GL_windowed || Cmdline_window*/ || Fred_running)
+	if (GL_minimized /*|| GL_windowed || Cmdline_window*/|| Fred_running) {
+		OPENGL_UNLOCK;
 		return;
-
+	}
 #ifdef _WIN32
 	HWND wnd = (HWND)os_get_window();
 	Assert( wnd );
@@ -254,6 +259,7 @@ void opengl_minimize()
 	if ( Cmdline_fullscreen_window || Cmdline_window || GL_windowed) {
 		ClipCursor(NULL);
 		ShowCursor(TRUE);
+		OPENGL_UNLOCK;
 		return;
 	}
 
@@ -273,13 +279,15 @@ void opengl_minimize()
 	os_resume();
 #else
 	// lets not minimize if we are in windowed mode
-	if ( !(SDL_GetVideoSurface()->flags & SDL_FULLSCREEN) )
+	if (!(SDL_GetVideoSurface()->flags & SDL_FULLSCREEN)) {
+		OPENGL_UNLOCK;
 		return;
+	}
 
 	os_suspend();
 
 	if (GL_original_gamma_ramp != NULL) {
-		SDL_SetGammaRamp( GL_original_gamma_ramp, (GL_original_gamma_ramp+256), (GL_original_gamma_ramp+512) );
+		SDL_SetGammaRamp(GL_original_gamma_ramp, (GL_original_gamma_ramp + 256), (GL_original_gamma_ramp + 512));
 	}
 
 	SDL_WM_IconifyWindow();
@@ -289,19 +297,21 @@ void opengl_minimize()
 	GL_minimized = 1;
 	GL_windowed = 0;
 	GL_fullscreen = 0;
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_activate(int active)
 {
+	OPENGL_LOCK;
 	if (active) {
-		if (Cmdline_fullscreen_window||Cmdline_window)
+		if (Cmdline_fullscreen_window || Cmdline_window)
 			opengl_go_windowed();
 		else
 			opengl_go_fullscreen();
 
 #ifdef SCP_UNIX
 		// Check again and if we didn't go fullscreen turn on grabbing if possible
-		if(!Cmdline_no_grab && !(SDL_GetVideoSurface()->flags & SDL_FULLSCREEN)) {
+		if (!Cmdline_no_grab && !(SDL_GetVideoSurface()->flags & SDL_FULLSCREEN)) {
 			SDL_WM_GrabInput(SDL_GRAB_ON);
 		}
 #endif
@@ -314,39 +324,43 @@ void gr_opengl_activate(int active)
 			SDL_WM_GrabInput(SDL_GRAB_OFF);
 #endif
 	}
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_clear()
 {
-	glClearColor(gr_screen.current_clear_color.red / 255.0f, 
-		gr_screen.current_clear_color.green / 255.0f, 
-		gr_screen.current_clear_color.blue / 255.0f, gr_screen.current_clear_color.alpha / 255.0f);
+	OPENGL_LOCK;
+	glClearColor(gr_screen.current_clear_color.red / 255.0f, gr_screen.current_clear_color.green / 255.0f, gr_screen.current_clear_color.blue / 255.0f, gr_screen.current_clear_color.alpha / 255.0f);
 
-	glClear ( GL_COLOR_BUFFER_BIT );
+	glClear( GL_COLOR_BUFFER_BIT);
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_flip()
 {
-	if ( !GL_initted )
+	OPENGL_LOCK;
+	if (!GL_initted) {
+		OPENGL_UNLOCK;
 		return;
+	}
 
 	gr_reset_clip();
 
 	mouse_eval_deltas();
-	
+
 	GL_mouse_saved = 0;
-	
-	if ( mouse_is_visible() ) {
+
+	if (mouse_is_visible()) {
 		int mx, my;
 
 		gr_reset_clip();
-		mouse_get_pos( &mx, &my );
+		mouse_get_pos(&mx, &my);
 
-	//	opengl_save_mouse_area(mx, my, Gr_cursor_size, Gr_cursor_size);
+		//	opengl_save_mouse_area(mx, my, Gr_cursor_size, Gr_cursor_size);
 
 		if (Gr_cursor != -1 && bm_is_valid(Gr_cursor)) {
 			gr_set_bitmap(Gr_cursor);
-			gr_bitmap( mx, my, false);
+			gr_bitmap(mx, my, false);
 		}
 	}
 
@@ -365,10 +379,12 @@ void gr_opengl_flip()
 		mprintf(("!!DEBUG!! OpenGL Errors this frame: %i\n", ic));
 	}
 #endif
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_set_clip(int x, int y, int w, int h, bool resize)
 {
+	OPENGL_LOCK;
 	// check for sanity of parameters
 	if (x < 0) {
 		x = 0;
@@ -398,7 +414,7 @@ void gr_opengl_set_clip(int x, int y, int w, int h, bool resize)
 	if (y + h > max_h) {
 		h = max_h - y;
 	}
-	
+
 	if (w > max_w) {
 		w = max_w;
 	}
@@ -410,9 +426,9 @@ void gr_opengl_set_clip(int x, int y, int w, int h, bool resize)
 	gr_screen.offset_x_unscaled = x;
 	gr_screen.offset_y_unscaled = y;
 	gr_screen.clip_left_unscaled = 0;
-	gr_screen.clip_right_unscaled = w-1;
+	gr_screen.clip_right_unscaled = w - 1;
 	gr_screen.clip_top_unscaled = 0;
-	gr_screen.clip_bottom_unscaled = h-1;
+	gr_screen.clip_bottom_unscaled = h - 1;
 	gr_screen.clip_width_unscaled = w;
 	gr_screen.clip_height_unscaled = h;
 
@@ -420,17 +436,17 @@ void gr_opengl_set_clip(int x, int y, int w, int h, bool resize)
 		gr_resize_screen_pos(&x, &y);
 		gr_resize_screen_pos(&w, &h);
 	} else {
-		gr_unsize_screen_pos( &gr_screen.offset_x_unscaled, &gr_screen.offset_y_unscaled );
-		gr_unsize_screen_pos( &gr_screen.clip_right_unscaled, &gr_screen.clip_bottom_unscaled );
-		gr_unsize_screen_pos( &gr_screen.clip_width_unscaled, &gr_screen.clip_height_unscaled );
+		gr_unsize_screen_pos(&gr_screen.offset_x_unscaled, &gr_screen.offset_y_unscaled);
+		gr_unsize_screen_pos(&gr_screen.clip_right_unscaled, &gr_screen.clip_bottom_unscaled);
+		gr_unsize_screen_pos(&gr_screen.clip_width_unscaled, &gr_screen.clip_height_unscaled);
 	}
 
 	gr_screen.offset_x = x;
 	gr_screen.offset_y = y;
 	gr_screen.clip_left = 0;
-	gr_screen.clip_right = w-1;
+	gr_screen.clip_right = w - 1;
 	gr_screen.clip_top = 0;
-	gr_screen.clip_bottom = h-1;
+	gr_screen.clip_bottom = h - 1;
 	gr_screen.clip_width = w;
 	gr_screen.clip_height = h;
 
@@ -439,21 +455,24 @@ void gr_opengl_set_clip(int x, int y, int w, int h, bool resize)
 	gr_screen.clip_center_y = (gr_screen.clip_top + gr_screen.clip_bottom) * 0.5f;
 
 	// just return early if we aren't actually going to need the scissor test
-	if ( (x == 0) && (y == 0) && (w == max_w) && (h == max_h) ) {
+	if ((x == 0) && (y == 0) && (w == max_w) && (h == max_h)) {
 		GL_state.ScissorTest(GL_FALSE);
+		OPENGL_UNLOCK;
 		return;
 	}
 
 	GL_state.ScissorTest(GL_TRUE);
-	if(GL_rendering_to_texture) {
+	if (GL_rendering_to_texture) {
 		glScissor(x, y, w, h);
 	} else {
-		glScissor(x, gr_screen.max_h-y-h, w, h);
+		glScissor(x, gr_screen.max_h - y - h, w, h);
 	}
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_reset_clip()
 {
+	OPENGL_LOCK;
 	gr_screen.offset_x = gr_screen.offset_x_unscaled = 0;
 	gr_screen.offset_y = gr_screen.offset_y_unscaled = 0;
 	gr_screen.clip_left = gr_screen.clip_left_unscaled = 0;
@@ -464,8 +483,8 @@ void gr_opengl_reset_clip()
 	gr_screen.clip_height = gr_screen.clip_height_unscaled = gr_screen.max_h;
 
 	if (gr_screen.custom_size) {
-		gr_unsize_screen_pos( &gr_screen.clip_right_unscaled, &gr_screen.clip_bottom_unscaled );
-		gr_unsize_screen_pos( &gr_screen.clip_width_unscaled, &gr_screen.clip_height_unscaled );
+		gr_unsize_screen_pos(&gr_screen.clip_right_unscaled, &gr_screen.clip_bottom_unscaled);
+		gr_unsize_screen_pos(&gr_screen.clip_width_unscaled, &gr_screen.clip_height_unscaled);
 	}
 
 	gr_screen.clip_aspect = i2fl(gr_screen.clip_width) / i2fl(gr_screen.clip_height);
@@ -473,6 +492,7 @@ void gr_opengl_reset_clip()
 	gr_screen.clip_center_y = (gr_screen.clip_top + gr_screen.clip_bottom) * 0.5f;
 
 	GL_state.ScissorTest(GL_FALSE);
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_set_palette(ubyte *new_palette, int is_alphacolor)
@@ -488,10 +508,11 @@ void gr_opengl_print_screen(const char *filename)
 	GLubyte *pixels = NULL;
 	GLuint pbo = 0;
 
+	OPENGL_LOCK;
 	// save to a "screenshots" directory and tack on the filename
 #ifdef SCP_UNIX
-	snprintf( tmp, MAX_PATH_LEN-1, "%s/%s/screenshots/%s.tga", detect_home(), Osreg_user_dir, filename);
-	_mkdir( tmp );
+	snprintf(tmp, MAX_PATH_LEN - 1, "%s/%s/screenshots/%s.tga", detect_home(), Osreg_user_dir, filename);
+	_mkdir(tmp);
 #else
 	_getcwd( tmp, MAX_PATH_LEN-1 );
 	strcat_s( tmp, "\\screenshots\\" );
@@ -504,20 +525,21 @@ void gr_opengl_print_screen(const char *filename)
 	FILE *fout = fopen(tmp, "wb");
 
 	if (fout == NULL) {
+		OPENGL_UNLOCK;
 		return;
 	}
 
 //	glReadBuffer(GL_FRONT);
 
-	// now for the data
+// now for the data
 	if (Use_PBOs) {
-		Assert( !pbo );
+		Assert(!pbo);
 		vglGenBuffersARB(1, &pbo);
 
-		if ( !pbo ) {
+		if (!pbo) {
 			if (fout != NULL)
 				fclose(fout);
-
+			OPENGL_UNLOCK;
 			return;
 		}
 
@@ -536,7 +558,7 @@ void gr_opengl_print_screen(const char *filename)
 			if (fout != NULL) {
 				fclose(fout);
 			}
-
+			OPENGL_UNLOCK;
 			return;
 		}
 
@@ -548,14 +570,14 @@ void gr_opengl_print_screen(const char *filename)
 	width = INTEL_SHORT((ushort)gr_screen.max_w);
 	height = INTEL_SHORT((ushort)gr_screen.max_h);
 
-	memset( tga_hdr, 0, sizeof(tga_hdr) );
+	memset(tga_hdr, 0, sizeof(tga_hdr));
 
 	tga_hdr[2] = 2;		// ImageType    2 = 24bpp, uncompressed
-	memcpy( tga_hdr + 12, &width, sizeof(ushort) );		// Width
-	memcpy( tga_hdr + 14, &height, sizeof(ushort) );	// Height
+	memcpy(tga_hdr + 12, &width, sizeof(ushort));		// Width
+	memcpy(tga_hdr + 14, &height, sizeof(ushort));	// Height
 	tga_hdr[16] = 24;	// PixelDepth
 
-	fwrite( tga_hdr, sizeof(tga_hdr), 1, fout );
+	fwrite(tga_hdr, sizeof(tga_hdr), 1, fout);
 
 	// now for the data, we convert it from 32-bit to 24-bit
 	for (i = 0; i < (gr_screen.max_w * gr_screen.max_h * 4); i += 4) {
@@ -567,7 +589,7 @@ void gr_opengl_print_screen(const char *filename)
 
 		fwrite( &pix, 1, 3, fout );
 #else
-		fwrite( pixels + i, 1, 3, fout );
+		fwrite(pixels + i, 1, 3, fout);
 #endif
 	}
 
@@ -584,15 +606,18 @@ void gr_opengl_print_screen(const char *filename)
 	if (pixels != NULL) {
 		vm_free(pixels);
 	}
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_cleanup(int minimize)
-{	
-	if ( !GL_initted ) {
+{
+	OPENGL_LOCK;
+	if (!GL_initted) {
+		OPENGL_UNLOCK;
 		return;
 	}
 
-	if ( !Fred_running ) {
+	if (!Fred_running) {
 		gr_reset_clip();
 		gr_clear();
 		gr_flip();
@@ -630,69 +655,71 @@ void gr_opengl_cleanup(int minimize)
 		}
 #endif
 	}
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_fog_set(int fog_mode, int r, int g, int b, float fog_near, float fog_far)
 {
+	OPENGL_LOCK;
 //	mprintf(("gr_opengl_fog_set(%d,%d,%d,%d,%f,%f)\n",fog_mode,r,g,b,fog_near,fog_far));
 
 	Assert((r >= 0) && (r < 256));
 	Assert((g >= 0) && (g < 256));
 	Assert((b >= 0) && (b < 256));
-	
+
 	if (fog_mode == GR_FOGMODE_NONE) {
-		if ( GL_state.Fog() ) {
+		if (GL_state.Fog()) {
 			GL_state.Fog(GL_FALSE);
 		}
 
 		gr_screen.current_fog_mode = fog_mode;
-		
+		OPENGL_UNLOCK;
 		return;
 	}
-	
-  	if (gr_screen.current_fog_mode != fog_mode) {
-	  	if (OGL_fogmode == 3) {
+
+	if (gr_screen.current_fog_mode != fog_mode) {
+		if (OGL_fogmode == 3) {
 			glFogf(GL_FOG_DISTANCE_MODE_NV, GL_EYE_RADIAL_NV);
 			glFogf(GL_FOG_COORDINATE_SOURCE, GL_FRAGMENT_DEPTH);
 		}
 		// Um.. this is not the correct way to fog in software, probably doesn't matter though
-		else if ( (OGL_fogmode == 2) && Cmdline_nohtl ) {
+		else if ((OGL_fogmode == 2) && Cmdline_nohtl) {
 			glFogf(GL_FOG_COORDINATE_SOURCE_EXT, GL_FOG_COORDINATE_EXT);
 			fog_near *= fog_near;		// it's faster this way
-			fog_far *= fog_far;		
+			fog_far *= fog_far;
 		} else {
 			glFogf(GL_FOG_COORDINATE_SOURCE, GL_FRAGMENT_DEPTH);
 		}
 
-		GL_state.Fog(GL_TRUE); 
+		GL_state.Fog(GL_TRUE);
 		glFogf(GL_FOG_MODE, GL_LINEAR);
 		glFogf(GL_FOG_START, fog_near);
 		glFogf(GL_FOG_END, fog_far);
 
 		gr_screen.current_fog_mode = fog_mode;
 	}
-	
-	if ( (gr_screen.current_fog_color.red != r) ||
-			(gr_screen.current_fog_color.green != g) ||
-			(gr_screen.current_fog_color.blue != b) )
-	{
+
+	if ((gr_screen.current_fog_color.red != r) || (gr_screen.current_fog_color.green != g) || (gr_screen.current_fog_color.blue != b)) {
 		GLfloat fc[4];
-		
-		gr_init_color( &gr_screen.current_fog_color, r, g, b );
-	
-		fc[0] = (float)r/255.0f;
-		fc[1] = (float)g/255.0f;
-		fc[2] = (float)b/255.0f;
+
+		gr_init_color(&gr_screen.current_fog_color, r, g, b);
+
+		fc[0] = (float) r / 255.0f;
+		fc[1] = (float) g / 255.0f;
+		fc[2] = (float) b / 255.0f;
 		fc[3] = 1.0f;
-		
+
 		glFogfv(GL_FOG_COLOR, fc);
 	}
 
+	OPENGL_UNLOCK;
 }
 
 int gr_opengl_set_cull(int cull)
 {
 	GLboolean enabled = GL_FALSE;
+
+	OPENGL_LOCK;
 
 	if (cull) {
 		enabled = GL_state.CullFace(GL_TRUE);
@@ -702,19 +729,23 @@ int gr_opengl_set_cull(int cull)
 		enabled = GL_state.CullFace(GL_FALSE);
 	}
 
+	OPENGL_UNLOCK;
 	return (enabled) ? 1 : 0;
 }
 
 void gr_opengl_set_clear_color(int r, int g, int b)
 {
+	OPENGL_LOCK;
 	gr_init_color(&gr_screen.current_clear_color, r, g, b);
+	OPENGL_UNLOCK;
 }
 
 int gr_opengl_set_color_buffer(int mode)
 {
 	GLboolean enabled = GL_FALSE;
 
-	if ( mode ) {
+	OPENGL_LOCK;
+	if (mode) {
 		enabled = GL_state.ColorMask(GL_TRUE);
 	} else {
 		enabled = GL_state.ColorMask(GL_FALSE);
@@ -722,15 +753,19 @@ int gr_opengl_set_color_buffer(int mode)
 
 	GL_state.SetAlphaBlendMode(ALPHA_BLEND_ALPHA_BLEND_ALPHA);
 
+	OPENGL_UNLOCK;
 	return (enabled) ? 1 : 0;
 }
 
 int gr_opengl_zbuffer_get()
 {
-	if ( !gr_global_zbuffering ) {
+	OPENGL_LOCK;
+	if (!gr_global_zbuffering) {
+		OPENGL_UNLOCK;
 		return GR_ZBUFF_NONE;
 	}
 
+	OPENGL_UNLOCK;
 	return gr_zbuffering_mode;
 }
 
@@ -738,12 +773,13 @@ int gr_opengl_zbuffer_set(int mode)
 {
 	int tmp = gr_zbuffering_mode;
 
+	OPENGL_LOCK;
 	gr_zbuffering_mode = mode;
 
 	if (gr_zbuffering_mode == GR_ZBUFF_NONE) {
 		gr_zbuffering = 0;
 		GL_state.SetZbufferType(ZBUFFER_TYPE_NONE);
-	} else if ( gr_zbuffering_mode == GR_ZBUFF_READ ) {
+	} else if (gr_zbuffering_mode == GR_ZBUFF_READ) {
 		gr_zbuffering = 1;
 		GL_state.SetZbufferType(ZBUFFER_TYPE_READ);
 	} else {
@@ -751,11 +787,13 @@ int gr_opengl_zbuffer_set(int mode)
 		GL_state.SetZbufferType(ZBUFFER_TYPE_FULL);
 	}
 
+	OPENGL_UNLOCK;
 	return tmp;
 }
 
 void gr_opengl_zbuffer_clear(int mode)
 {
+	OPENGL_LOCK;
 	if (mode) {
 		gr_zbuffering = 1;
 		gr_zbuffering_mode = GR_ZBUFF_FULL;
@@ -773,18 +811,20 @@ void gr_opengl_zbuffer_clear(int mode)
 
 		GL_state.DepthTest(GL_FALSE);
 	}
+	OPENGL_UNLOCK;
 }
 
 int gr_opengl_stencil_set(int mode)
 {
 	int tmp = gr_stencil_mode;
 
+	OPENGL_LOCK;
 	gr_stencil_mode = mode;
 
-	if ( mode == GR_STENCIL_READ ) {
+	if (mode == GR_STENCIL_READ) {
 		GL_state.StencilTest(1);
 		GL_state.SetStencilType(STENCIL_TYPE_READ);
-	} else if ( mode == GR_STENCIL_WRITE ) {
+	} else if (mode == GR_STENCIL_WRITE) {
 		GL_state.StencilTest(1);
 		GL_state.SetStencilType(STENCIL_TYPE_WRITE);
 	} else {
@@ -792,21 +832,25 @@ int gr_opengl_stencil_set(int mode)
 		GL_state.SetStencilType(STENCIL_TYPE_NONE);
 	}
 
+	OPENGL_UNLOCK;
 	return tmp;
 }
 
 void gr_opengl_stencil_clear()
 {
+	OPENGL_LOCK;
 	glClear(GL_STENCIL_BUFFER_BIT);
+	OPENGL_UNLOCK;
 }
 
 int gr_opengl_alpha_mask_set(int mode, float alpha)
 {
 	int tmp = gr_alpha_test;
 
+	OPENGL_LOCK;
 	gr_alpha_test = mode;
 
-	if ( mode ) {
+	if (mode) {
 		GL_state.AlphaTest(GL_TRUE);
 		GL_state.AlphaFunc(GL_GREATER, alpha);
 	} else {
@@ -814,6 +858,7 @@ int gr_opengl_alpha_mask_set(int mode, float alpha)
 		GL_state.AlphaFunc(GL_ALWAYS, 1.0f);
 	}
 
+	OPENGL_UNLOCK;
 	return tmp;
 }
 
@@ -823,62 +868,66 @@ static void opengl_make_gamma_ramp(float gamma, ushort *ramp)
 	ushort x, y;
 	ushort base_ramp[256];
 
-	Assert( ramp != NULL );
+	Assert(ramp != NULL);
 
+	OPENGL_LOCK;
 	// generate the base ramp values first off
 
 	// if no gamma set then just do this quickly
 	if (gamma <= 0.0f) {
-		memset( ramp, 0, 3 * 256 * sizeof(ushort) );
+		memset(ramp, 0, 3 * 256 * sizeof(ushort));
+		OPENGL_UNLOCK;
 		return;
 	}
 	// identity gamma, avoid all of the math
-	else if ( (gamma == 1.0f) || (GL_original_gamma_ramp == NULL) ) {
+	else if ((gamma == 1.0f) || (GL_original_gamma_ramp == NULL)) {
 		if (GL_original_gamma_ramp != NULL) {
-			memcpy( ramp, GL_original_gamma_ramp, 3 * 256 * sizeof(ushort) );
+			memcpy(ramp, GL_original_gamma_ramp, 3 * 256 * sizeof(ushort));
 		}
 		// set identity if no original ramp
 		else {
 			for (x = 0; x < 256; x++) {
-				ramp[x]	= (x << 8) | x;
+				ramp[x] = (x << 8) | x;
 				ramp[x + 256] = (x << 8) | x;
 				ramp[x + 512] = (x << 8) | x;
 			}
 		}
-
+		OPENGL_UNLOCK;
 		return;
 	}
 	// for everything else we need to actually figure it up
 	else {
-		double g = 1.0 / (double)gamma;
+		double g = 1.0 / (double) gamma;
 		double val;
 
-		Assert( GL_original_gamma_ramp != NULL );
+		Assert(GL_original_gamma_ramp != NULL);
 
 		for (x = 0; x < 256; x++) {
-			val = (pow(x/255.0, g) * 65535.0 + 0.5);
-			CLAMP( val, 0, 65535 );
+			val = (pow(x / 255.0, g) * 65535.0 + 0.5);
+			CLAMP(val, 0, 65535);
 
-			base_ramp[x] = (ushort)val;
+			base_ramp[x] = (ushort) val;
 		}
 
 		for (y = 0; y < 3; y++) {
 			for (x = 0; x < 256; x++) {
 				val = (base_ramp[x] * 2) - GL_original_gamma_ramp[x + y * 256];
-				CLAMP( val, 0, 65535 );
+				CLAMP(val, 0, 65535);
 
-				ramp[x + y * 256] = (ushort)val;
+				ramp[x + y * 256] = (ushort) val;
 			}
 		}
 	}
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_set_gamma(float gamma)
 {
 	ushort *gamma_ramp = NULL;
 
+	OPENGL_LOCK;
 	Gr_gamma = gamma;
-	Gr_gamma_int = int (Gr_gamma*10);
+	Gr_gamma_int = int(Gr_gamma * 10);
 
 	// new way - but not while running FRED
 	if (!Fred_running && !Cmdline_no_set_gamma) {
@@ -886,10 +935,11 @@ void gr_opengl_set_gamma(float gamma)
 
 		if (gamma_ramp == NULL) {
 			Int3();
+			OPENGL_UNLOCK;
 			return;
 		}
 
-		memset( gamma_ramp, 0, 3 * 256 * sizeof(ushort) );
+		memset(gamma_ramp, 0, 3 * 256 * sizeof(ushort));
 
 		// Create the Gamma lookup table
 		opengl_make_gamma_ramp(gamma, gamma_ramp);
@@ -897,39 +947,42 @@ void gr_opengl_set_gamma(float gamma)
 #ifdef _WIN32
 		SetDeviceGammaRamp( GL_device_context, gamma_ramp );
 #else
-		SDL_SetGammaRamp( gamma_ramp, (gamma_ramp+256), (gamma_ramp+512) );
+		SDL_SetGammaRamp(gamma_ramp, (gamma_ramp + 256), (gamma_ramp + 512));
 #endif
 
 		vm_free(gamma_ramp);
 	}
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_get_region(int front, int w, int h, ubyte *data)
 {
 
+	OPENGL_LOCK;
 //	if (front) {
 //		glReadBuffer(GL_FRONT);
 //	} else {
-		glReadBuffer(GL_BACK);
+	glReadBuffer(GL_BACK);
 //	}
 
 	GL_state.SetTextureSource(TEXTURE_SOURCE_NO_FILTERING);
 	GL_state.SetAlphaBlendMode(ALPHA_BLEND_NONE);
 	GL_state.SetZbufferType(ZBUFFER_TYPE_NONE);
-	
+
 	if (gr_screen.bits_per_pixel == 16) {
-		glReadPixels(0, gr_screen.max_h-h, w, h, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, data);
+		glReadPixels(0, gr_screen.max_h - h, w, h, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, data);
 	} else if (gr_screen.bits_per_pixel == 32) {
-		glReadPixels(0, gr_screen.max_h-h, w, h, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, data);
+		glReadPixels(0, gr_screen.max_h - h, w, h, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, data);
 	}
 
-
+	OPENGL_UNLOCK;
 }
 
 void opengl_save_mouse_area(int x, int y, int w, int h)
 {
 	int cursor_size;
 
+	OPENGL_LOCK;
 	GL_CHECK_FOR_ERRORS("start of save_mouse_area()");
 
 	// lazy - taylor
@@ -943,19 +996,19 @@ void opengl_save_mouse_area(int x, int y, int w, int h)
 
 	GL_mouse_saved_x1 = x;
 	GL_mouse_saved_y1 = y;
-	GL_mouse_saved_x2 = x+w-1;
-	GL_mouse_saved_y2 = y+h-1;
+	GL_mouse_saved_x2 = x + w - 1;
+	GL_mouse_saved_y2 = y + h - 1;
 
-	CLAMP(GL_mouse_saved_x1, gr_screen.clip_left, gr_screen.clip_right );
-	CLAMP(GL_mouse_saved_x2, gr_screen.clip_left, gr_screen.clip_right );
-	CLAMP(GL_mouse_saved_y1, gr_screen.clip_top, gr_screen.clip_bottom );
-	CLAMP(GL_mouse_saved_y2, gr_screen.clip_top, gr_screen.clip_bottom );
+	CLAMP(GL_mouse_saved_x1, gr_screen.clip_left, gr_screen.clip_right);
+	CLAMP(GL_mouse_saved_x2, gr_screen.clip_left, gr_screen.clip_right);
+	CLAMP(GL_mouse_saved_y1, gr_screen.clip_top, gr_screen.clip_bottom);
+	CLAMP(GL_mouse_saved_y2, gr_screen.clip_top, gr_screen.clip_bottom);
 
 	GL_state.SetTextureSource(TEXTURE_SOURCE_NO_FILTERING);
 	GL_state.SetAlphaBlendMode(ALPHA_BLEND_NONE);
 	GL_state.SetZbufferType(ZBUFFER_TYPE_NONE);
 
-	if ( Use_PBOs ) {
+	if (Use_PBOs) {
 		// since this is used a lot, and is pretty small in size, we just create it once and leave it until exit
 		if (!GL_cursor_pbo) {
 			vglGenBuffersARB(1, &GL_cursor_pbo);
@@ -970,10 +1023,13 @@ void opengl_save_mouse_area(int x, int y, int w, int h)
 	} else {
 		// this should really only have to be malloc'd once
 		if (GL_saved_mouse_data == NULL)
-			GL_saved_mouse_data = (ubyte*)vm_malloc_q(cursor_size * 4);
+		GL_saved_mouse_data = (ubyte*)vm_malloc_q(cursor_size * 4);
 
 		if (GL_saved_mouse_data == NULL)
+		{
+			OPENGL_UNLOCK;
 			return;
+		}
 
 		glReadBuffer(GL_BACK);
 		glReadPixels(x, gr_screen.max_h-y-1-h, w, h, GL_read_format, GL_UNSIGNED_INT_8_8_8_8_REV, GL_saved_mouse_data);
@@ -982,6 +1038,7 @@ void opengl_save_mouse_area(int x, int y, int w, int h)
 	GL_CHECK_FOR_ERRORS("end of save_mouse_area()");
 
 	GL_mouse_saved = 1;
+	OPENGL_UNLOCK;
 }
 
 int gr_opengl_save_screen()
@@ -991,24 +1048,27 @@ int gr_opengl_save_screen()
 	ubyte *opengl_screen_tmp = NULL;
 	int width_times_pixel, mouse_times_pixel;
 
+	OPENGL_LOCK;
 	gr_opengl_reset_clip();
 
 	if (GL_saved_screen || GL_screen_pbo) {
+		OPENGL_UNLOCK;
 		// already have a screen saved so just bail...
 		return -1;
 	}
 
-	GL_saved_screen = (ubyte*)vm_malloc_q( gr_screen.max_w * gr_screen.max_h * 4 );
+	GL_saved_screen = (ubyte*) vm_malloc_q( gr_screen.max_w * gr_screen.max_h * 4 );
 
 	if (!GL_saved_screen) {
 		mprintf(( "Couldn't get memory for saved screen!\n" ));
- 		return -1;
+		OPENGL_UNLOCK;
+		return -1;
 	}
 
 	GLboolean save_state = GL_state.DepthTest(GL_FALSE);
 	glReadBuffer(GL_FRONT_LEFT);
 
-	if ( Use_PBOs ) {
+	if (Use_PBOs) {
 		GLubyte *pixels = NULL;
 
 		vglGenBuffersARB(1, &GL_screen_pbo);
@@ -1027,13 +1087,13 @@ int gr_opengl_save_screen()
 
 		glReadPixels(0, 0, gr_screen.max_w, gr_screen.max_h, GL_read_format, GL_UNSIGNED_INT_8_8_8_8_REV, NULL);
 
-		pixels = (GLubyte*)vglMapBufferARB(GL_PIXEL_PACK_BUFFER_ARB, GL_READ_ONLY);
+		pixels = (GLubyte*) vglMapBufferARB(GL_PIXEL_PACK_BUFFER_ARB, GL_READ_ONLY);
 
 		width_times_pixel = (gr_screen.max_w * 4);
 		mouse_times_pixel = (Gr_cursor_size * 4);
 
-		sptr = (ubyte *)pixels;
-		dptr = (ubyte *)&GL_saved_screen[gr_screen.max_w * gr_screen.max_h * 4];
+		sptr = (ubyte *) pixels;
+		dptr = (ubyte *) &GL_saved_screen[gr_screen.max_w * gr_screen.max_h * 4];
 
 		for (i = 0; i < gr_screen.max_h; i++) {
 			dptr -= width_times_pixel;
@@ -1067,7 +1127,7 @@ int gr_opengl_save_screen()
 
 		GL_saved_screen_id = bm_create(32, gr_screen.max_w, gr_screen.max_h, GL_saved_screen, 0);
 	} else {
-		opengl_screen_tmp = (ubyte*)vm_malloc_q( gr_screen.max_w * gr_screen.max_h * 4 );
+		opengl_screen_tmp = (ubyte*) vm_malloc_q( gr_screen.max_w * gr_screen.max_h * 4 );
 
 		if (!opengl_screen_tmp) {
 			if (GL_saved_screen) {
@@ -1077,13 +1137,14 @@ int gr_opengl_save_screen()
 
 			mprintf(( "Couldn't get memory for temporary saved screen!\n" ));
 			GL_state.DepthTest(save_state);
-	 		return -1;
-	 	}
+			OPENGL_UNLOCK;
+			return -1;
+		}
 
 		glReadPixels(0, 0, gr_screen.max_w, gr_screen.max_h, GL_read_format, GL_UNSIGNED_INT_8_8_8_8_REV, opengl_screen_tmp);
 
-		sptr = (ubyte *)&opengl_screen_tmp[gr_screen.max_w * gr_screen.max_h * 4];
-		dptr = (ubyte *)GL_saved_screen;
+		sptr = (ubyte *) &opengl_screen_tmp[gr_screen.max_w * gr_screen.max_h * 4];
+		dptr = (ubyte *) GL_saved_screen;
 
 		width_times_pixel = (gr_screen.max_w * 4);
 		mouse_times_pixel = (Gr_cursor_size * 4);
@@ -1097,8 +1158,8 @@ int gr_opengl_save_screen()
 		vm_free(opengl_screen_tmp);
 
 		if (GL_mouse_saved && GL_saved_mouse_data) {
-			sptr = (ubyte *)GL_saved_mouse_data;
-			dptr = (ubyte *)&GL_saved_screen[(GL_mouse_saved_x1 + GL_mouse_saved_y2 * gr_screen.max_w) * 4];
+			sptr = (ubyte *) GL_saved_mouse_data;
+			dptr = (ubyte *) &GL_saved_screen[(GL_mouse_saved_x1 + GL_mouse_saved_y2 * gr_screen.max_w) * 4];
 
 			for (i = 0; i < Gr_cursor_size; i++) {
 				memcpy(dptr, sptr, mouse_times_pixel);
@@ -1112,87 +1173,103 @@ int gr_opengl_save_screen()
 
 	GL_state.DepthTest(save_state);
 
+	OPENGL_UNLOCK;
 	return GL_saved_screen_id;
 }
 
 void gr_opengl_restore_screen(int bmp_id)
 {
+	OPENGL_LOCK;
 	gr_reset_clip();
 
-	if ( !GL_saved_screen ) {
+	if (!GL_saved_screen) {
 		gr_clear();
+		OPENGL_UNLOCK;
 		return;
 	}
 
-	Assert( (bmp_id < 0) || (bmp_id == GL_saved_screen_id) );
+	Assert((bmp_id < 0) || (bmp_id == GL_saved_screen_id));
 
-	if (GL_saved_screen_id < 0)
+	if (GL_saved_screen_id < 0) {
+		OPENGL_UNLOCK;
 		return;
+	}
 
 	gr_set_bitmap(GL_saved_screen_id);
 	gr_bitmap(0, 0, false);	// don't scale here since we already have real screen size
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_free_screen(int bmp_id)
 {
-	if (!GL_saved_screen)
+	OPENGL_LOCK;
+	if (!GL_saved_screen) {
+		OPENGL_UNLOCK;
 		return;
+	}
 
 	vm_free(GL_saved_screen);
 	GL_saved_screen = NULL;
 
-	Assert( (bmp_id < 0) || (bmp_id == GL_saved_screen_id) );
+	Assert((bmp_id < 0) || (bmp_id == GL_saved_screen_id));
 
-	if (GL_saved_screen_id < 0)
+	if (GL_saved_screen_id < 0) {
+		OPENGL_UNLOCK;
 		return;
+	}
 
 	bm_release(GL_saved_screen_id);
 	GL_saved_screen_id = -1;
+	OPENGL_UNLOCK;
 }
 
 static void opengl_flush_frame_dump()
 {
 	char filename[MAX_FILENAME_LEN];
 
-	Assert( GL_dump_buffer != NULL);
+	OPENGL_LOCK;
+	Assert(GL_dump_buffer != NULL);
 
 	for (int i = 0; i < GL_dump_frame_count; i++) {
-		sprintf(filename, NOX("frm%04d.tga"), GL_dump_frame_number );
+		sprintf(filename, NOX("frm%04d.tga"), GL_dump_frame_number);
 		GL_dump_frame_number++;
 
 		CFILE *f = cfopen(filename, "wb", CFILE_NORMAL, CF_TYPE_DATA);
 
 		// Write the TGA header
-		cfwrite_ubyte( 0, f );	//	IDLength;
-		cfwrite_ubyte( 0, f );	//	ColorMapType;
-		cfwrite_ubyte( 2, f );	//	ImageType;		// 2 = 24bpp, uncompressed, 10=24bpp rle compressed
-		cfwrite_ushort( 0, f );	// CMapStart;
-		cfwrite_ushort( 0, f );	//	CMapLength;
-		cfwrite_ubyte( 0, f );	// CMapDepth;
-		cfwrite_ushort( 0, f );	//	XOffset;
-		cfwrite_ushort( 0, f );	//	YOffset;
-		cfwrite_ushort( (ushort)gr_screen.max_w, f );	//	Width;
-		cfwrite_ushort( (ushort)gr_screen.max_h, f );	//	Height;
-		cfwrite_ubyte( 24, f );	//PixelDepth;
-		cfwrite_ubyte( 0, f );	//ImageDesc;
+		cfwrite_ubyte(0, f);	//	IDLength;
+		cfwrite_ubyte(0, f);	//	ColorMapType;
+		cfwrite_ubyte(2, f);	//	ImageType;		// 2 = 24bpp, uncompressed, 10=24bpp rle compressed
+		cfwrite_ushort(0, f);	// CMapStart;
+		cfwrite_ushort(0, f);	//	CMapLength;
+		cfwrite_ubyte(0, f);	// CMapDepth;
+		cfwrite_ushort(0, f);	//	XOffset;
+		cfwrite_ushort(0, f);	//	YOffset;
+		cfwrite_ushort((ushort) gr_screen.max_w, f);	//	Width;
+		cfwrite_ushort((ushort) gr_screen.max_h, f);	//	Height;
+		cfwrite_ubyte(24, f);	//PixelDepth;
+		cfwrite_ubyte(0, f);	//ImageDesc;
 
 		glReadBuffer(GL_FRONT);
 		glReadPixels(0, 0, gr_screen.max_w, gr_screen.max_h, GL_BGR_EXT, GL_UNSIGNED_BYTE, GL_dump_buffer);
 
 		// save the data out
-		cfwrite( GL_dump_buffer, GL_dump_frame_size, 1, f );
+		cfwrite(GL_dump_buffer, GL_dump_frame_size, 1, f);
 
 		cfclose(f);
 
 	}
 
 	GL_dump_frame_count = 0;
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_dump_frame_start(int first_frame, int frames_between_dumps)
 {
-	if ( GL_dump_frames )	{
+	OPENGL_LOCK;
+	if (GL_dump_frames) {
 		Int3();		//  We're already dumping frames.  See John.
+		OPENGL_UNLOCK;
 		return;
 	}
 
@@ -1201,78 +1278,93 @@ void gr_opengl_dump_frame_start(int first_frame, int frames_between_dumps)
 	GL_dump_frame_count = 0;
 	GL_dump_frame_count_max = frames_between_dumps; // only works if it's 1
 	GL_dump_frame_size = gr_screen.max_w * gr_screen.max_h * 3;
-	
-	if ( !GL_dump_buffer ) {
+
+	if (!GL_dump_buffer) {
 		int size = GL_dump_frame_count_max * GL_dump_frame_size;
 
-		GL_dump_buffer = (ubyte *)vm_malloc(size);
+		GL_dump_buffer = (ubyte *) vm_malloc(size);
 
-		if ( !GL_dump_buffer )	{
-			Error(LOCATION, "Unable to malloc %d bytes for dump buffer", size );
+		if (!GL_dump_buffer) {
+			Error(LOCATION, "Unable to malloc %d bytes for dump buffer", size);
 		}
 	}
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_dump_frame_stop()
 {
-	if ( !GL_dump_frames )	{
+	OPENGL_LOCK;
+	if (!GL_dump_frames) {
 		Int3();		//  We're not dumping frames.  See John.
+		OPENGL_UNLOCK;
 		return;
-	}	
+	}
 
 	// dump any remaining frames
 	opengl_flush_frame_dump();
-	
+
 	GL_dump_frames = 0;
 
-	if ( GL_dump_buffer )	{
+	if (GL_dump_buffer) {
 		vm_free(GL_dump_buffer);
 		GL_dump_buffer = NULL;
 	}
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_dump_frame()
 {
+	OPENGL_LOCK;
 	GL_dump_frame_count++;
 
-	if ( GL_dump_frame_count == GL_dump_frame_count_max ) {
+	if (GL_dump_frame_count == GL_dump_frame_count_max) {
 		opengl_flush_frame_dump();
 	}
+	OPENGL_UNLOCK;
 }
 
 //fill mode, solid/wire frame
 void gr_opengl_set_fill_mode(int mode)
 {
+	OPENGL_LOCK;
 	if (mode == GR_FILL_MODE_SOLID) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		OPENGL_UNLOCK;
 		return;
 	}
 
 	if (mode == GR_FILL_MODE_WIRE) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		OPENGL_UNLOCK;
 		return;
 	}
 
 	// default setting
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_zbias(int bias)
 {
+	OPENGL_LOCK;
 	if (bias) {
 		GL_state.PolygonOffsetFill(GL_TRUE);
 		glPolygonOffset(0.0, -i2fl(bias));
 	} else {
 		GL_state.PolygonOffsetFill(GL_FALSE);
 	}
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_push_texture_matrix(int unit)
 {
 	GLint current_matrix;
 
-	if (unit > GL_supported_texture_units)
+	OPENGL_LOCK;
+	if (unit > GL_supported_texture_units) {
+		OPENGL_UNLOCK;
 		return;
+	}
 
 	glGetIntegerv(GL_MATRIX_MODE, &current_matrix);
 	vglActiveTextureARB(GL_TEXTURE0_ARB+unit);
@@ -1281,14 +1373,18 @@ void gr_opengl_push_texture_matrix(int unit)
 	glPushMatrix();
 
 	glMatrixMode(current_matrix);
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_pop_texture_matrix(int unit)
 {
 	GLint current_matrix;
 
-	if (unit > GL_supported_texture_units)
+	OPENGL_LOCK;
+	if (unit > GL_supported_texture_units) {
+		OPENGL_UNLOCK;
 		return;
+	}
 
 	glGetIntegerv(GL_MATRIX_MODE, &current_matrix);
 	vglActiveTextureARB(GL_TEXTURE0_ARB+unit);
@@ -1297,14 +1393,17 @@ void gr_opengl_pop_texture_matrix(int unit)
 	glPopMatrix();
 
 	glMatrixMode(current_matrix);
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_translate_texture_matrix(int unit, vec3d *shift)
 {
 	GLint current_matrix;
 
+	OPENGL_LOCK;
 	if (unit > GL_supported_texture_units) {
 		/*tex_shift=*shift;*/
+		OPENGL_UNLOCK;
 		return;
 	}
 
@@ -1317,18 +1416,24 @@ void gr_opengl_translate_texture_matrix(int unit, vec3d *shift)
 	glMatrixMode(current_matrix);
 
 //	tex_shift=vmd_zero_vector;
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_setup_background_fog(bool set)
 {
+	OPENGL_LOCK;
 	if (Cmdline_nohtl) {
+		OPENGL_UNLOCK;
 		return;
 	}
+	OPENGL_UNLOCK;
 }
 
 void gr_opengl_set_line_width(float width)
 {
+	OPENGL_LOCK;
 	glLineWidth(width);
+	OPENGL_UNLOCK;
 }
 
 // Returns the human readable error string if there is an error or NULL if not
@@ -1336,12 +1441,15 @@ const char *opengl_error_string()
 {
 	GLenum error = GL_NO_ERROR;
 
+	OPENGL_LOCK;
 	error = glGetError();
 
-	if ( error != GL_NO_ERROR ) {
-		return (const char *)gluErrorString(error);
+	if (error != GL_NO_ERROR) {
+		OPENGL_UNLOCK;
+		return (const char *) gluErrorString(error);
 	}
 
+	OPENGL_UNLOCK;
 	return NULL;
 }
 
@@ -1353,6 +1461,7 @@ int opengl_check_for_errors(char *err_at)
 	const char *error_str = NULL;
 	int num_errors = 0;
 
+	OPENGL_LOCK;
 	error_str = opengl_error_string();
 
 	if (error_str) {
@@ -1365,13 +1474,16 @@ int opengl_check_for_errors(char *err_at)
 		num_errors++;
 	}
 
+	OPENGL_UNLOCK;
 	return num_errors;
 }
 
 void opengl_set_vsync(int status)
 {
-	if ( (status < 0) || (status > 1) ) {
+	OPENGL_LOCK;
+	if ((status < 0) || (status > 1)) {
 		Int3();
+		OPENGL_UNLOCK;
 		return;
 	}
 
@@ -1388,10 +1500,12 @@ void opengl_set_vsync(int status)
 #endif
 
 	GL_CHECK_FOR_ERRORS("end of set_vsync()");
+	OPENGL_UNLOCK;
 }
 
 void opengl_setup_viewport()
 {
+	OPENGL_LOCK;
 	glViewport(0, 0, gr_screen.max_w, gr_screen.max_h);
 
 	glMatrixMode(GL_PROJECTION);
@@ -1406,11 +1520,13 @@ void opengl_setup_viewport()
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
+	OPENGL_UNLOCK;
 }
 
 // NOTE: This should only ever be called through os_cleanup(), or when switching video APIs
 void gr_opengl_shutdown()
 {
+	OPENGL_LOCK;
 	if (GL_cursor_pbo) {
 		vglDeleteBuffersARB(1, &GL_cursor_pbo);
 		GL_cursor_pbo = 0;
@@ -1442,7 +1558,7 @@ void gr_opengl_shutdown()
 	ChangeDisplaySettings( NULL, 0 );
 #else
 	if (GL_original_gamma_ramp != NULL) {
-		SDL_SetGammaRamp( GL_original_gamma_ramp, (GL_original_gamma_ramp+256), (GL_original_gamma_ramp+512) );
+		SDL_SetGammaRamp(GL_original_gamma_ramp, (GL_original_gamma_ramp + 256), (GL_original_gamma_ramp + 512));
 	}
 #endif
 
@@ -1461,6 +1577,7 @@ void gr_opengl_shutdown()
 
 	GL_device_context = NULL;
 #endif
+	OPENGL_UNLOCK;
 }
 
 // NOTE: This should only ever be called through atexit()!!!
@@ -1474,56 +1591,57 @@ int opengl_init_display_device()
 {
 	int bpp = gr_screen.bits_per_pixel;
 
-	if ( (bpp != 16) && (bpp != 32) ) {
+	OPENGL_LOCK;
+	if ((bpp != 16) && (bpp != 32)) {
 		Int3();
+		OPENGL_UNLOCK;
 		return 1;
 	}
 
-
 	// screen format
 	switch (bpp) {
-		case 16: {
-			Gr_red.bits = 5;
-			Gr_red.shift = 11;
-			Gr_red.scale = 8;
-			Gr_red.mask = 0xF800;
+	case 16: {
+		Gr_red.bits = 5;
+		Gr_red.shift = 11;
+		Gr_red.scale = 8;
+		Gr_red.mask = 0xF800;
 
-			Gr_green.bits = 6;
-			Gr_green.shift = 5;
-			Gr_green.scale = 4;
-			Gr_green.mask = 0x7E0;
+		Gr_green.bits = 6;
+		Gr_green.shift = 5;
+		Gr_green.scale = 4;
+		Gr_green.mask = 0x7E0;
 
-			Gr_blue.bits = 5;
-			Gr_blue.shift = 0;
-			Gr_blue.scale = 8;
-			Gr_blue.mask = 0x1F;		
+		Gr_blue.bits = 5;
+		Gr_blue.shift = 0;
+		Gr_blue.scale = 8;
+		Gr_blue.mask = 0x1F;
 
-			break;
-		}
+		break;
+	}
 
-		case 32: {
-			Gr_red.bits = 8;
-			Gr_red.shift = 16;
-			Gr_red.scale = 1;
-			Gr_red.mask = 0xff0000;
+	case 32: {
+		Gr_red.bits = 8;
+		Gr_red.shift = 16;
+		Gr_red.scale = 1;
+		Gr_red.mask = 0xff0000;
 
-			Gr_green.bits = 8;
-			Gr_green.shift = 8;
-			Gr_green.scale = 1;
-			Gr_green.mask = 0x00ff00;
+		Gr_green.bits = 8;
+		Gr_green.shift = 8;
+		Gr_green.scale = 1;
+		Gr_green.mask = 0x00ff00;
 
-			Gr_blue.bits = 8;
-			Gr_blue.shift = 0;
-			Gr_blue.scale = 1;
-			Gr_blue.mask = 0x0000ff;
+		Gr_blue.bits = 8;
+		Gr_blue.shift = 0;
+		Gr_blue.scale = 1;
+		Gr_blue.mask = 0x0000ff;
 
-			Gr_alpha.bits = 8;
-			Gr_alpha.shift = 24;
-			Gr_alpha.mask = 0xff000000;
-			Gr_alpha.scale = 1;
+		Gr_alpha.bits = 8;
+		Gr_alpha.shift = 24;
+		Gr_alpha.mask = 0xff000000;
+		Gr_alpha.scale = 1;
 
-			break;
-		}
+		break;
+	}
 	}
 
 	// texture format
@@ -1531,17 +1649,17 @@ int opengl_init_display_device()
 	Gr_t_red.mask = 0x7c00;
 	Gr_t_red.shift = 10;
 	Gr_t_red.scale = 8;
-	
+
 	Gr_t_green.bits = 5;
 	Gr_t_green.mask = 0x03e0;
 	Gr_t_green.shift = 5;
 	Gr_t_green.scale = 8;
-	
+
 	Gr_t_blue.bits = 5;
 	Gr_t_blue.mask = 0x001f;
 	Gr_t_blue.shift = 0;
 	Gr_t_blue.scale = 8;
-	
+
 	Gr_t_alpha.bits = 1;
 	Gr_t_alpha.mask = 0x8000;
 	Gr_t_alpha.scale = 255;
@@ -1552,24 +1670,24 @@ int opengl_init_display_device()
 	Gr_ta_red.mask = 0x0f00;
 	Gr_ta_red.shift = 8;
 	Gr_ta_red.scale = 17;
-	
+
 	Gr_ta_green.bits = 4;
 	Gr_ta_green.mask = 0x00f0;
 	Gr_ta_green.shift = 4;
 	Gr_ta_green.scale = 17;
-	
+
 	Gr_ta_blue.bits = 4;
 	Gr_ta_blue.mask = 0x000f;
 	Gr_ta_blue.shift = 0;
 	Gr_ta_blue.scale = 17;
-	
+
 	Gr_ta_alpha.bits = 4;
 	Gr_ta_alpha.mask = 0xf000;
 	Gr_ta_alpha.shift = 12;
 	Gr_ta_alpha.scale = 17;
 
 	// allocate storage for original gamma settings
-	if ( !Cmdline_no_set_gamma && (GL_original_gamma_ramp == NULL) ) {
+	if (!Cmdline_no_set_gamma && (GL_original_gamma_ramp == NULL)) {
 		GL_original_gamma_ramp = (ushort*) vm_malloc_q( 3 * 256 * sizeof(ushort) );
 
 		if (GL_original_gamma_ramp == NULL) {
@@ -1582,7 +1700,6 @@ int opengl_init_display_device()
 			}
 		}
 	}
-
 
 	// now init the display device
 #ifdef _WIN32
@@ -1616,6 +1733,7 @@ int opengl_init_display_device()
 
 	if ( !GL_device_context ) {
 		MessageBox(wnd, "Unable to get device context for OpenGL W32!", "error", MB_ICONERROR | MB_OK);
+		OPENGL_UNLOCK;
 		return 1;
 	}
 
@@ -1623,6 +1741,7 @@ int opengl_init_display_device()
 
 	if ( !PixelFormat ) {
 		MessageBox(wnd, "Unable to choose pixel format for OpenGL W32!","error", MB_ICONERROR | MB_OK);
+		OPENGL_UNLOCK;
 		return 1;
 	} else {
 		DescribePixelFormat(GL_device_context, PixelFormat, sizeof(PIXELFORMATDESCRIPTOR), &pfd_test);
@@ -1641,6 +1760,7 @@ int opengl_init_display_device()
 
 			if (!PixelFormat) {
 				MessageBox(wnd, "Unable to choose pixel format for OpenGL W32!","error", MB_ICONERROR | MB_OK);
+				OPENGL_UNLOCK;
 				return 1;
 			}
 
@@ -1649,6 +1769,7 @@ int opengl_init_display_device()
 
 			if ( (pfd_test.dwFlags & PFD_GENERIC_FORMAT) && !(pfd_test.dwFlags & PFD_GENERIC_ACCELERATED) ) {
 				MessageBox(wnd, "Unable to get proper pixel format for OpenGL W32!", "Error", MB_ICONERROR | MB_OK);
+				OPENGL_UNLOCK;
 				return 1;
 			}
 		}
@@ -1656,17 +1777,20 @@ int opengl_init_display_device()
 
 	if ( !SetPixelFormat(GL_device_context, PixelFormat, &GL_pfd) ) {
 		MessageBox(wnd, "Unable to set pixel format for OpenGL W32!", "error", MB_ICONERROR | MB_OK);
+		OPENGL_UNLOCK;
 		return 1;
 	}
 
 	GL_render_context = wglCreateContext(GL_device_context);
 	if ( !GL_render_context ) {
 		MessageBox(wnd, "Unable to create rendering context for OpenGL W32!", "error", MB_ICONERROR | MB_OK);
+		OPENGL_UNLOCK;
 		return 1;
 	}
 
 	if ( !wglMakeCurrent(GL_device_context, GL_render_context) ) {
 		MessageBox(wnd, "Unable to make current thread for OpenGL W32!", "error", MB_ICONERROR | MB_OK);
+		OPENGL_UNLOCK;
 		return 1;
 	}
 
@@ -1698,12 +1822,13 @@ int opengl_init_display_device()
 	mprintf(("  Initializing SDL...\n"));
 
 	if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
-		fprintf (stderr, "Couldn't init SDL: %s", SDL_GetError());
+		fprintf(stderr, "Couldn't init SDL: %s", SDL_GetError());
+		OPENGL_UNLOCK;
 		return 1;
 	}
 
 	// grab mouse/key unless told otherwise, ignore when we are going fullscreen
-	if ( (Cmdline_fullscreen_window|| Cmdline_window || os_config_read_uint(NULL, "Fullscreen", 1) == 0) && !Cmdline_no_grab ) {
+	if ((Cmdline_fullscreen_window || Cmdline_window || os_config_read_uint(NULL, "Fullscreen", 1) == 0) && !Cmdline_no_grab) {
 		SDL_WM_GrabInput(SDL_GRAB_ON);
 	}
 
@@ -1713,9 +1838,9 @@ int opengl_init_display_device()
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, (bpp == 32) ? 24 : 16);
 	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, (bpp == 32) ? 8 : 1);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, db);
-	
+
 	int fsaa_samples = os_config_read_uint(NULL, "OGL_AntiAliasSamples", 0);
-	
+
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, (fsaa_samples == 0) ? 0 : 1);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, fsaa_samples);
 
@@ -1725,7 +1850,8 @@ int opengl_init_display_device()
 	mprintf(("  Requested SDL Video values = R: %d, G: %d, B: %d, depth: %d, stencil: %d, double-buffer: %d, FSAA: %d\n", Gr_red.bits, Gr_green.bits, Gr_blue.bits, (bpp == 32) ? 24 : 16, (bpp == 32) ? 8 : 1, db, fsaa_samples));
 
 	if (SDL_SetVideoMode(gr_screen.max_w, gr_screen.max_h, bpp, flags) == NULL) {
-		fprintf (stderr, "Couldn't set video mode: %s", SDL_GetError());
+		fprintf(stderr, "Couldn't set video mode: %s", SDL_GetError());
+		OPENGL_UNLOCK;
 		return 1;
 	}
 
@@ -1745,13 +1871,13 @@ int opengl_init_display_device()
 	SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 
 	if (GL_original_gamma_ramp != NULL) {
-		SDL_GetGammaRamp( GL_original_gamma_ramp, (GL_original_gamma_ramp+256), (GL_original_gamma_ramp+512) );
+		SDL_GetGammaRamp(GL_original_gamma_ramp, (GL_original_gamma_ramp + 256), (GL_original_gamma_ramp + 512));
 	}
 #endif
 
+	OPENGL_UNLOCK;
 	return 0;
 }
-
 
 void opengl_setup_function_pointers()
 {
@@ -1759,176 +1885,178 @@ void opengl_setup_function_pointers()
 	// NOTE: All function pointers here should have a Cmdline_nohtl check at the top
 	//       if they shouldn't be run in non-HTL mode, Don't keep separate entries.
 
-	gr_screen.gf_flip				= gr_opengl_flip;
-	gr_screen.gf_set_clip			= gr_opengl_set_clip;
-	gr_screen.gf_reset_clip			= gr_opengl_reset_clip;
-	
-	gr_screen.gf_clear				= gr_opengl_clear;
+	OPENGL_LOCK;
+	gr_screen.gf_flip = gr_opengl_flip;
+	gr_screen.gf_set_clip = gr_opengl_set_clip;
+	gr_screen.gf_reset_clip = gr_opengl_reset_clip;
+
+	gr_screen.gf_clear = gr_opengl_clear;
 //	gr_screen.gf_bitmap				= gr_opengl_bitmap;
-	gr_screen.gf_bitmap_ex			= gr_opengl_bitmap_ex;
-	gr_screen.gf_aabitmap			= gr_opengl_aabitmap;
-	gr_screen.gf_aabitmap_ex		= gr_opengl_aabitmap_ex;
-	
+	gr_screen.gf_bitmap_ex = gr_opengl_bitmap_ex;
+	gr_screen.gf_aabitmap = gr_opengl_aabitmap;
+	gr_screen.gf_aabitmap_ex = gr_opengl_aabitmap_ex;
+
 //	gr_screen.gf_rect				= gr_opengl_rect;
 //	gr_screen.gf_shade				= gr_opengl_shade;
-	gr_screen.gf_string				= gr_opengl_string;
-	gr_screen.gf_circle				= gr_opengl_circle;
-	gr_screen.gf_curve				= gr_opengl_curve;
+	gr_screen.gf_string = gr_opengl_string;
+	gr_screen.gf_circle = gr_opengl_circle;
+	gr_screen.gf_curve = gr_opengl_curve;
 
-	gr_screen.gf_line				= gr_opengl_line;
-	gr_screen.gf_aaline				= gr_opengl_aaline;
-	gr_screen.gf_pixel				= gr_opengl_pixel;
-	gr_screen.gf_scaler				= gr_opengl_scaler;
-	gr_screen.gf_tmapper			= gr_opengl_tmapper;
-	gr_screen.gf_render				= gr_opengl_render;
-	gr_screen.gf_render_effect		= gr_opengl_render_effect;
+	gr_screen.gf_line = gr_opengl_line;
+	gr_screen.gf_aaline = gr_opengl_aaline;
+	gr_screen.gf_pixel = gr_opengl_pixel;
+	gr_screen.gf_scaler = gr_opengl_scaler;
+	gr_screen.gf_tmapper = gr_opengl_tmapper;
+	gr_screen.gf_render = gr_opengl_render;
+	gr_screen.gf_render_effect = gr_opengl_render_effect;
 
-	gr_screen.gf_gradient			= gr_opengl_gradient;
+	gr_screen.gf_gradient = gr_opengl_gradient;
 
-	gr_screen.gf_set_palette		= gr_opengl_set_palette;
-	gr_screen.gf_print_screen		= gr_opengl_print_screen;
+	gr_screen.gf_set_palette = gr_opengl_set_palette;
+	gr_screen.gf_print_screen = gr_opengl_print_screen;
 
-	gr_screen.gf_fade_in			= gr_opengl_fade_in;
-	gr_screen.gf_fade_out			= gr_opengl_fade_out;
-	gr_screen.gf_flash				= gr_opengl_flash;
-	gr_screen.gf_flash_alpha		= gr_opengl_flash_alpha;
-	
-	gr_screen.gf_zbuffer_get		= gr_opengl_zbuffer_get;
-	gr_screen.gf_zbuffer_set		= gr_opengl_zbuffer_set;
-	gr_screen.gf_zbuffer_clear		= gr_opengl_zbuffer_clear;
+	gr_screen.gf_fade_in = gr_opengl_fade_in;
+	gr_screen.gf_fade_out = gr_opengl_fade_out;
+	gr_screen.gf_flash = gr_opengl_flash;
+	gr_screen.gf_flash_alpha = gr_opengl_flash_alpha;
 
-	gr_screen.gf_stencil_set		= gr_opengl_stencil_set;
-	gr_screen.gf_stencil_clear		= gr_opengl_stencil_clear;
+	gr_screen.gf_zbuffer_get = gr_opengl_zbuffer_get;
+	gr_screen.gf_zbuffer_set = gr_opengl_zbuffer_set;
+	gr_screen.gf_zbuffer_clear = gr_opengl_zbuffer_clear;
 
-	gr_screen.gf_alpha_mask_set		= gr_opengl_alpha_mask_set;
-	
-	gr_screen.gf_save_screen		= gr_opengl_save_screen;
-	gr_screen.gf_restore_screen		= gr_opengl_restore_screen;
-	gr_screen.gf_free_screen		= gr_opengl_free_screen;
-	
-	gr_screen.gf_dump_frame_start	= gr_opengl_dump_frame_start;
-	gr_screen.gf_dump_frame_stop	= gr_opengl_dump_frame_stop;
-	gr_screen.gf_dump_frame			= gr_opengl_dump_frame;
-	
-	gr_screen.gf_set_gamma			= gr_opengl_set_gamma;
+	gr_screen.gf_stencil_set = gr_opengl_stencil_set;
+	gr_screen.gf_stencil_clear = gr_opengl_stencil_clear;
 
-	gr_screen.gf_fog_set			= gr_opengl_fog_set;	
+	gr_screen.gf_alpha_mask_set = gr_opengl_alpha_mask_set;
+
+	gr_screen.gf_save_screen = gr_opengl_save_screen;
+	gr_screen.gf_restore_screen = gr_opengl_restore_screen;
+	gr_screen.gf_free_screen = gr_opengl_free_screen;
+
+	gr_screen.gf_dump_frame_start = gr_opengl_dump_frame_start;
+	gr_screen.gf_dump_frame_stop = gr_opengl_dump_frame_stop;
+	gr_screen.gf_dump_frame = gr_opengl_dump_frame;
+
+	gr_screen.gf_set_gamma = gr_opengl_set_gamma;
+
+	gr_screen.gf_fog_set = gr_opengl_fog_set;
 
 	// UnknownPlayer : Don't recognize this - MAY NEED DEBUGGING
-	gr_screen.gf_get_region			= gr_opengl_get_region;
+	gr_screen.gf_get_region = gr_opengl_get_region;
 
 	// now for the bitmap functions
-	gr_screen.gf_bm_free_data			= gr_opengl_bm_free_data;
-	gr_screen.gf_bm_create				= gr_opengl_bm_create;
-	gr_screen.gf_bm_init				= gr_opengl_bm_init;
-	gr_screen.gf_bm_load				= gr_opengl_bm_load;
-	gr_screen.gf_bm_page_in_start		= gr_opengl_bm_page_in_start;
-	gr_screen.gf_bm_lock				= gr_opengl_bm_lock;
-	gr_screen.gf_bm_make_render_target	= gr_opengl_bm_make_render_target;
-	gr_screen.gf_bm_set_render_target	= gr_opengl_bm_set_render_target;
+	gr_screen.gf_bm_free_data = gr_opengl_bm_free_data;
+	gr_screen.gf_bm_create = gr_opengl_bm_create;
+	gr_screen.gf_bm_init = gr_opengl_bm_init;
+	gr_screen.gf_bm_load = gr_opengl_bm_load;
+	gr_screen.gf_bm_page_in_start = gr_opengl_bm_page_in_start;
+	gr_screen.gf_bm_lock = gr_opengl_bm_lock;
+	gr_screen.gf_bm_make_render_target = gr_opengl_bm_make_render_target;
+	gr_screen.gf_bm_set_render_target = gr_opengl_bm_set_render_target;
 
-	gr_screen.gf_set_cull			= gr_opengl_set_cull;
-	gr_screen.gf_set_color_buffer	= gr_opengl_set_color_buffer;
+	gr_screen.gf_set_cull = gr_opengl_set_cull;
+	gr_screen.gf_set_color_buffer = gr_opengl_set_color_buffer;
 
-	gr_screen.gf_cross_fade			= gr_opengl_cross_fade;
+	gr_screen.gf_cross_fade = gr_opengl_cross_fade;
 
-	gr_screen.gf_tcache_set			= gr_opengl_tcache_set;
+	gr_screen.gf_tcache_set = gr_opengl_tcache_set;
 
-	gr_screen.gf_set_clear_color	= gr_opengl_set_clear_color;
+	gr_screen.gf_set_clear_color = gr_opengl_set_clear_color;
 
-	gr_screen.gf_preload			= gr_opengl_preload;
+	gr_screen.gf_preload = gr_opengl_preload;
 
-	gr_screen.gf_push_texture_matrix		= gr_opengl_push_texture_matrix;
-	gr_screen.gf_pop_texture_matrix			= gr_opengl_pop_texture_matrix;
-	gr_screen.gf_translate_texture_matrix	= gr_opengl_translate_texture_matrix;
+	gr_screen.gf_push_texture_matrix = gr_opengl_push_texture_matrix;
+	gr_screen.gf_pop_texture_matrix = gr_opengl_pop_texture_matrix;
+	gr_screen.gf_translate_texture_matrix = gr_opengl_translate_texture_matrix;
 
-	gr_screen.gf_set_texture_addressing	= gr_opengl_set_texture_addressing;
-	gr_screen.gf_zbias					= gr_opengl_zbias;
-	gr_screen.gf_set_fill_mode			= gr_opengl_set_fill_mode;
-	gr_screen.gf_set_texture_panning	= gr_opengl_set_texture_panning;
+	gr_screen.gf_set_texture_addressing = gr_opengl_set_texture_addressing;
+	gr_screen.gf_zbias = gr_opengl_zbias;
+	gr_screen.gf_set_fill_mode = gr_opengl_set_fill_mode;
+	gr_screen.gf_set_texture_panning = gr_opengl_set_texture_panning;
 
-	gr_screen.gf_create_buffer		= gr_opengl_create_buffer;
-	gr_screen.gf_config_buffer		= gr_opengl_config_buffer;
-	gr_screen.gf_pack_buffer		= gr_opengl_pack_buffer;
-	gr_screen.gf_destroy_buffer		= gr_opengl_destroy_buffer;
-	gr_screen.gf_render_buffer		= gr_opengl_render_buffer;
-	gr_screen.gf_set_buffer			= gr_opengl_set_buffer;
+	gr_screen.gf_create_buffer = gr_opengl_create_buffer;
+	gr_screen.gf_config_buffer = gr_opengl_config_buffer;
+	gr_screen.gf_pack_buffer = gr_opengl_pack_buffer;
+	gr_screen.gf_destroy_buffer = gr_opengl_destroy_buffer;
+	gr_screen.gf_render_buffer = gr_opengl_render_buffer;
+	gr_screen.gf_set_buffer = gr_opengl_set_buffer;
 
-	gr_screen.gf_create_stream_buffer		= gr_opengl_create_stream_buffer;
-	gr_screen.gf_update_stream_buffer		= gr_opengl_update_stream_buffer;
-	gr_screen.gf_render_stream_buffer		= gr_opengl_render_stream_buffer;
-	gr_screen.gf_render_stream_buffer_start	= gr_opengl_render_stream_buffer_start;
-	gr_screen.gf_render_stream_buffer_end	= gr_opengl_render_stream_buffer_end;
+	gr_screen.gf_create_stream_buffer = gr_opengl_create_stream_buffer;
+	gr_screen.gf_update_stream_buffer = gr_opengl_update_stream_buffer;
+	gr_screen.gf_render_stream_buffer = gr_opengl_render_stream_buffer;
+	gr_screen.gf_render_stream_buffer_start = gr_opengl_render_stream_buffer_start;
+	gr_screen.gf_render_stream_buffer_end = gr_opengl_render_stream_buffer_end;
 
-	gr_screen.gf_start_instance_matrix			= gr_opengl_start_instance_matrix;
-	gr_screen.gf_end_instance_matrix			= gr_opengl_end_instance_matrix;
-	gr_screen.gf_start_angles_instance_matrix	= gr_opengl_start_instance_angles;
+	gr_screen.gf_start_instance_matrix = gr_opengl_start_instance_matrix;
+	gr_screen.gf_end_instance_matrix = gr_opengl_end_instance_matrix;
+	gr_screen.gf_start_angles_instance_matrix = gr_opengl_start_instance_angles;
 
-	gr_screen.gf_make_light			= gr_opengl_make_light;
-	gr_screen.gf_modify_light		= gr_opengl_modify_light;
-	gr_screen.gf_destroy_light		= gr_opengl_destroy_light;
-	gr_screen.gf_set_light			= gr_opengl_set_light;
-	gr_screen.gf_reset_lighting		= gr_opengl_reset_lighting;
-	gr_screen.gf_set_ambient_light	= gr_opengl_set_ambient_light;
+	gr_screen.gf_make_light = gr_opengl_make_light;
+	gr_screen.gf_modify_light = gr_opengl_modify_light;
+	gr_screen.gf_destroy_light = gr_opengl_destroy_light;
+	gr_screen.gf_set_light = gr_opengl_set_light;
+	gr_screen.gf_reset_lighting = gr_opengl_reset_lighting;
+	gr_screen.gf_set_ambient_light = gr_opengl_set_ambient_light;
 
-	gr_screen.gf_post_process_set_effect	= gr_opengl_post_process_set_effect;
-	gr_screen.gf_post_process_set_defaults	= gr_opengl_post_process_set_defaults;
+	gr_screen.gf_post_process_set_effect = gr_opengl_post_process_set_effect;
+	gr_screen.gf_post_process_set_defaults = gr_opengl_post_process_set_defaults;
 
-	gr_screen.gf_post_process_begin		= gr_opengl_post_process_begin;
-	gr_screen.gf_post_process_end		= gr_opengl_post_process_end;
-	gr_screen.gf_post_process_save_zbuffer	= gr_opengl_post_process_save_zbuffer;
+	gr_screen.gf_post_process_begin = gr_opengl_post_process_begin;
+	gr_screen.gf_post_process_end = gr_opengl_post_process_end;
+	gr_screen.gf_post_process_save_zbuffer = gr_opengl_post_process_save_zbuffer;
 
 	gr_screen.gf_scene_texture_begin = gr_opengl_scene_texture_begin;
 	gr_screen.gf_scene_texture_end = gr_opengl_scene_texture_end;
 
-	gr_screen.gf_start_clip_plane	= gr_opengl_start_clip_plane;
-	gr_screen.gf_end_clip_plane		= gr_opengl_end_clip_plane;
+	gr_screen.gf_start_clip_plane = gr_opengl_start_clip_plane;
+	gr_screen.gf_end_clip_plane = gr_opengl_end_clip_plane;
 
-	gr_screen.gf_lighting			= gr_opengl_set_lighting;
+	gr_screen.gf_lighting = gr_opengl_set_lighting;
 
-	gr_screen.gf_set_proj_matrix	= gr_opengl_set_projection_matrix;
-	gr_screen.gf_end_proj_matrix	= gr_opengl_end_projection_matrix;
+	gr_screen.gf_set_proj_matrix = gr_opengl_set_projection_matrix;
+	gr_screen.gf_end_proj_matrix = gr_opengl_end_projection_matrix;
 
-	gr_screen.gf_set_view_matrix	= gr_opengl_set_view_matrix;
-	gr_screen.gf_end_view_matrix	= gr_opengl_end_view_matrix;
+	gr_screen.gf_set_view_matrix = gr_opengl_set_view_matrix;
+	gr_screen.gf_end_view_matrix = gr_opengl_end_view_matrix;
 
-	gr_screen.gf_push_scale_matrix	= gr_opengl_push_scale_matrix;
-	gr_screen.gf_pop_scale_matrix	= gr_opengl_pop_scale_matrix;
-	gr_screen.gf_center_alpha		= gr_opengl_center_alpha;
+	gr_screen.gf_push_scale_matrix = gr_opengl_push_scale_matrix;
+	gr_screen.gf_pop_scale_matrix = gr_opengl_pop_scale_matrix;
+	gr_screen.gf_center_alpha = gr_opengl_center_alpha;
 
-	gr_screen.gf_setup_background_fog	= gr_opengl_setup_background_fog;
+	gr_screen.gf_setup_background_fog = gr_opengl_setup_background_fog;
 
-	gr_screen.gf_start_state_block	= gr_opengl_start_state_block;
-	gr_screen.gf_end_state_block	= gr_opengl_end_state_block;
-	gr_screen.gf_set_state_block	= gr_opengl_set_state_block;
+	gr_screen.gf_start_state_block = gr_opengl_start_state_block;
+	gr_screen.gf_end_state_block = gr_opengl_end_state_block;
+	gr_screen.gf_set_state_block = gr_opengl_set_state_block;
 
-	gr_screen.gf_draw_line_list		= gr_opengl_draw_line_list;
+	gr_screen.gf_draw_line_list = gr_opengl_draw_line_list;
 
-	gr_screen.gf_set_line_width		= gr_opengl_set_line_width;
+	gr_screen.gf_set_line_width = gr_opengl_set_line_width;
 
-	gr_screen.gf_line_htl			= gr_opengl_line_htl;
-	gr_screen.gf_sphere_htl			= gr_opengl_sphere_htl;
+	gr_screen.gf_line_htl = gr_opengl_line_htl;
+	gr_screen.gf_sphere_htl = gr_opengl_sphere_htl;
 
 	gr_screen.gf_maybe_create_shader = gr_opengl_maybe_create_shader;
 
-	gr_screen.gf_flush_data_states	= gr_opengl_flush_data_states;
+	gr_screen.gf_flush_data_states = gr_opengl_flush_data_states;
 
-	gr_screen.gf_set_team_color		= gr_opengl_set_team_color;
+	gr_screen.gf_set_team_color = gr_opengl_set_team_color;
 	gr_screen.gf_disable_team_color = gr_opengl_disable_team_color;
 
 	gr_screen.gf_update_texture = gr_opengl_update_texture;
 	// NOTE: All function pointers here should have a Cmdline_nohtl check at the top
 	//       if they shouldn't be run in non-HTL mode, Don't keep separate entries.
 	// *****************************************************************************
+	OPENGL_UNLOCK;
 }
-
 
 bool gr_opengl_init()
 {
 	char *ver;
 	int major = 0, minor = 0;
 
-	if ( !GL_initted )
+	OPENGL_LOCK;
+	if (!GL_initted)
 		atexit(opengl_close);
 
 	if (GL_initted) {
@@ -1938,12 +2066,12 @@ bool gr_opengl_init()
 
 	mprintf(( "Initializing OpenGL graphics device at %ix%i with %i-bit color...\n", gr_screen.max_w, gr_screen.max_h, gr_screen.bits_per_pixel ));
 
-	if ( opengl_init_display_device() ) {
+	if (opengl_init_display_device()) {
 		Error(LOCATION, "Unable to initialize display device!\n");
 	}
 
 	// version check
-	ver = (char *)glGetString(GL_VERSION);
+	ver = (char *) glGetString(GL_VERSION);
 	sscanf(ver, "%d.%d", &major, &minor);
 
 	GL_version = (major * 10) + minor;
@@ -1973,7 +2101,7 @@ bool gr_opengl_init()
 
 	// setup the lighting stuff that will get used later
 	opengl_light_init();
-	
+
 	// init state system (must come AFTER light is set up)
 	GL_state.init();
 
@@ -2005,8 +2133,7 @@ bool gr_opengl_init()
 	opengl_post_process_init();
 
 	// must be called after extensions are setup
-	opengl_set_vsync( !Cmdline_no_vsync );
-
+	opengl_set_vsync(!Cmdline_no_vsync);
 
 	opengl_setup_viewport();
 
@@ -2022,7 +2149,7 @@ bool gr_opengl_init()
 
 	glPixelStorei(GL_PACK_ALIGNMENT, 1);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	
+
 	glFlush();
 
 	Gr_current_red = &Gr_red;
@@ -2039,7 +2166,6 @@ bool gr_opengl_init()
 	gr_opengl_clear();
 	Mouse_hidden--;
 
-
 	glGetIntegerv(GL_MAX_ELEMENTS_VERTICES, &GL_max_elements_vertices);
 	glGetIntegerv(GL_MAX_ELEMENTS_INDICES, &GL_max_elements_indices);
 
@@ -2048,7 +2174,7 @@ bool gr_opengl_init()
 	mprintf(( "  Max elements indices: %i\n", GL_max_elements_indices ));
 	mprintf(( "  Max texture size: %ix%i\n", GL_max_texture_width, GL_max_texture_height ));
 
-	if ( Is_Extension_Enabled(OGL_EXT_FRAMEBUFFER_OBJECT) ) {
+	if ( Is_Extension_Enabled(OGL_EXT_FRAMEBUFFER_OBJECT)) {
 		mprintf(( "  Max render buffer size: %ix%i\n", GL_max_renderbuffer_size, GL_max_renderbuffer_size ));
 	}
 
@@ -2061,71 +2187,77 @@ bool gr_opengl_init()
 		mprintf(( "  OpenGL Shader Version: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION_ARB) ));
 	}
 
-
-
 	// This stops fred crashing if no textures are set
 	gr_screen.current_bitmap = -1;
 
 	mprintf(("... OpenGL init is complete!\n"));
 
-    if (Cmdline_ati_color_swap)
-        GL_read_format = GL_RGBA;
+	if (Cmdline_ati_color_swap)
+		GL_read_format = GL_RGBA;
 
+	OPENGL_UNLOCK;
 	return true;
 }
 
 DCF(ogl_minimize, "Minimizes opengl")
 {
-	if ( gr_screen.mode != GR_OPENGL ) {
+	OPENGL_LOCK;
+	if (gr_screen.mode != GR_OPENGL) {
 		dc_printf("Command only available in OpenGL mode.\n");
+		OPENGL_UNLOCK;
 		return;
 	}
 
 	if (Dc_command) {
 		dc_get_arg(ARG_TRUE);
 
-		if ( Dc_arg_type & ARG_TRUE ) {
+		if (Dc_arg_type & ARG_TRUE) {
 			opengl_minimize();
 		}
 	}
 
 	if (Dc_help)
 		dc_printf("If set to true then the OpenGL window will minimize.\n");
+	OPENGL_UNLOCK;
 }
 
 DCF(ogl_anisotropy, "toggles anisotropic filtering")
 {
-	if ( gr_screen.mode != GR_OPENGL ) {
+	OPENGL_LOCK;
+	if (gr_screen.mode != GR_OPENGL) {
 		dc_printf("Can only set anisotropic filter in OpenGL mode.\n");
+		OPENGL_UNLOCK;
 		return;
 	}
 
-	if ( Dc_command && !Is_Extension_Enabled(OGL_EXT_TEXTURE_FILTER_ANISOTROPIC) ) {
+	if (Dc_command && !Is_Extension_Enabled(OGL_EXT_TEXTURE_FILTER_ANISOTROPIC)) {
 		dc_printf("Error: Anisotropic filter is not settable!\n");
+		OPENGL_UNLOCK;
 		return;
 	}
 
-	if ( Dc_command ) {
+	if (Dc_command) {
 		dc_get_arg(ARG_INT | ARG_NONE);
 
-		if ( Dc_arg_type & ARG_NONE ) {
+		if (Dc_arg_type & ARG_NONE) {
 			GL_anisotropy = 1.0f;
-		//	opengl_set_anisotropy();
+			//	opengl_set_anisotropy();
 			dc_printf("Anisotropic filter value reset to default level.\n");
 		}
 
-		if ( Dc_arg_type & ARG_INT ) {
-			GL_anisotropy = (GLfloat)Dc_arg_float;
-		//	opengl_set_anisotropy( (float)Dc_arg_float );
+		if (Dc_arg_type & ARG_INT) {
+			GL_anisotropy = (GLfloat) Dc_arg_float;
+			//	opengl_set_anisotropy( (float)Dc_arg_float );
 		}
 	}
 
-	if ( Dc_status ) {
-		dc_printf("Current anisotropic filter value is %i\n", (int)GL_anisotropy);
+	if (Dc_status) {
+		dc_printf("Current anisotropic filter value is %i\n", (int) GL_anisotropy);
 	}
 
 	if (Dc_help) {
 		dc_printf("Sets OpenGL anisotropic filtering level.\n");
-		dc_printf("Valid values are 1 to %i, or 0 to turn off.\n", (int)opengl_get_max_anisotropy());
+		dc_printf("Valid values are 1 to %i, or 0 to turn off.\n", (int) opengl_get_max_anisotropy());
 	}
+	OPENGL_UNLOCK;
 }

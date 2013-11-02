@@ -40,6 +40,7 @@
 
 #include "globalincs/pstypes.h"
 #include "graphics/grinternal.h"
+#include "multithread/multithread.h"
 
 
 #ifndef APIENTRY

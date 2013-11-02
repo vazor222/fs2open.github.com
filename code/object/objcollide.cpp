@@ -14,9 +14,9 @@
 #include "globalincs/linklist.h"
 #include "io/timer.h"
 #include "ship/ship.h"
-#include "weapon/beam.h"
 #include "weapon/weapon.h"
 #include "object/objectdock.h"
+#include "multithread/multithread.h"
 
 
 
@@ -1262,7 +1262,11 @@ void obj_find_overlap_colliders(SCP_vector<int> *overlap_list_out, SCP_vector<in
 				}
 				
 				if ( collide ) {
-					obj_collide_pair(&Objects[(*list)[i]], &Objects[overlappers[j]]);
+#ifdef MULTITHREADING_ENABLED
+				  collision_pair_add(&Objects[(*list)[i]], &Objects[overlappers[j]]);
+#else
+          obj_collide_pair(&Objects[(*list)[i]], &Objects[overlappers[j]]);
+#endif
 				}
 			} else {
 				overlappers[j] = overlappers.back();
@@ -1285,53 +1289,6 @@ void obj_find_overlap_colliders(SCP_vector<int> *overlap_list_out, SCP_vector<in
 	}
 
 	overlapped = true;
-}
-
-float obj_get_collider_endpoint(int obj_num, int axis, bool min)
-{
-	if ( Objects[obj_num].type == OBJ_BEAM ) {
-		beam *b = &Beams[Objects[obj_num].instance];
-
-		// use the last start and last shot as endpoints
-		float min_end, max_end;
-		if ( b->last_start.a1d[axis] > b->last_shot.a1d[axis] ) {
-			min_end = b->last_shot.a1d[axis];
-			max_end = b->last_start.a1d[axis];
-		} else {
-			min_end = b->last_start.a1d[axis];
-			max_end = b->last_shot.a1d[axis];
-		}
-
-		if ( min ) {
-			return min_end;
-		} else {
-			return max_end;
-		}
-	} else if ( Objects[obj_num].type == OBJ_WEAPON ) {
-		float min_end, max_end;
-
-		if ( Objects[obj_num].pos.a1d[axis] > Objects[obj_num].last_pos.a1d[axis] ) {
-			min_end = Objects[obj_num].last_pos.a1d[axis];
-			max_end = Objects[obj_num].pos.a1d[axis];
-		} else {
-			min_end = Objects[obj_num].pos.a1d[axis];
-			max_end = Objects[obj_num].last_pos.a1d[axis];
-		}
-
-		if ( min ) {
-			return min_end - Objects[obj_num].radius;
-		} else {
-			return max_end + Objects[obj_num].radius;
-		}
-	} else {
-		vec3d *pos = &Objects[obj_num].pos;
-
-		if ( min ) {
-			return pos->a1d[axis] - Objects[obj_num].radius;
-		} else {
-			return pos->a1d[axis] + Objects[obj_num].radius;
-		}
-	}
 }
 
 void obj_quicksort_colliders(SCP_vector<int> *list, int left, int right, int axis)

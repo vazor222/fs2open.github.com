@@ -14,3 +14,10 @@ depcomp
 install-sh
 missing
 .svn
+
+Debug
+Debug AVX
+
+/projects/MSVC_2013/*.suo
+/projects/MSVC_2013/*.opensdf
+/projects/MSVC_2013/*.sdf

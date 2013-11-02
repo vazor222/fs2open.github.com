@@ -14,6 +14,9 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#ifdef __linux__
+#include <execinfo.h>
+#endif
 
 #include "globalincs/pstypes.h"
 #include "io/key.h"
@@ -241,8 +244,30 @@ void os_poll()
 
 void debug_int3(char *file, int line)
 {
-	mprintf(("Int3(): From %s at line %d\n", file, line));
+#ifndef NDEBUG
+#ifdef __linux__
+#define SIZE 1024
+  char **symbols;
+  int i, numstrings;
+  void *buffer[SIZE];
+#endif
+#endif
+  mprintf(("Int3(): From %s at line %d\n", file, line));
 
+#ifndef NDEBUG
+#ifdef __linux__
+	numstrings = backtrace(buffer, SIZE);
+	symbols = backtrace_symbols(buffer, numstrings);
+	if(symbols != NULL)
+	{
+	  for(i = 0; i < numstrings; i++)
+	  {
+	    mprintf(("%s\n", symbols[i]));
+	  }
+	}
+	free(symbols);
+#endif
+#endif
 	// we have to call os_deinit() before abort() so we make sure that SDL gets
 	// closed out and we don't lose video/input control
 	os_deinit();

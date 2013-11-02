@@ -5853,9 +5853,9 @@ void weapon_hit( object * weapon_obj, object * other_obj, vec3d * hitpos, int qu
 	int			weapon_type = Weapons[num].weapon_info_index;
 	int			expl_ani_handle;
 	weapon_info	*wip;
-	weapon *wp;
+	weapon      *wp;
 	bool		hit_target = false;
-
+    
 	object      *other_objp;
 	ship_obj	*so;
 	ship		*shipp;
@@ -5955,7 +5955,7 @@ void weapon_hit( object * weapon_obj, object * other_obj, vec3d * hitpos, int qu
 			}
 		}
 	}
-
+    
 	// For all objects that had this weapon as a target, wipe it out, forcing find of a new enemy
 	for ( so = GET_FIRST(&Ship_obj_list); so != END_OF_LIST(&Ship_obj_list); so = GET_NEXT(so) ) {
 		other_objp = &Objects[so->objnum];

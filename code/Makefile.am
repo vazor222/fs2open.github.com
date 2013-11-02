@@ -185,7 +185,7 @@ EXTRA_DIST =	\
 
 # D_ variants are defaults and should always be used
 # FS2_ variants are for game building and wxFRED
-AM_CXXFLAGS = @D_CFLAGS@ @FS2_CXXFLAGS@
+AM_CXXFLAGS = @D_CFLAGS@ @FS2_CXXFLAGS@ -I../mongoose
 AM_LDFLAGS = @D_LDFLAGS@ @FS2_LDFLAGS@
 
 if BUILD_WXFRED
@@ -498,6 +498,7 @@ FS2_SOURCES =	\
 	model/modelsinc.h	\
 	model/modeloctant.cpp	\
 	model/modelread.cpp	\
+	multithread/multithread.cpp	\
 	nebula/neb.cpp	\
 	nebula/neb.h	\
 	nebula/neblightning.cpp	\
@@ -818,8 +819,8 @@ fs2_open_@PACKAGE_VERSION@_DEBUG_SOURCES =	\
 fs2_open_@PACKAGE_VERSION@_SOURCES =	\
 	${FS2OPEN_SOURCES}
 
-fs2_open_@PACKAGE_VERSION@_DEBUG_LDADD = libcode.a
-fs2_open_@PACKAGE_VERSION@_LDADD = libcode.a
+fs2_open_@PACKAGE_VERSION@_DEBUG_LDADD = libcode.a ../mongoose/libmongoose.a
+fs2_open_@PACKAGE_VERSION@_LDADD = libcode.a ../mongoose/libmongoose.a
 
 ##
 ## End MAIN binary
@@ -897,8 +898,8 @@ wxFRED_SOURCES = \
 	wxfred2/glcviewport.h \
 	wxfred2/misc/dlgmissionstats.h \
 	wxfred2/misc/dlgmissionstats.cpp \
-	wxfred2/wxfred2.cpp \
-	wxfred2/wxfred2.h \
+	wxfred2/wxfred2.cpp	\
+	wxfred2/wxfred2.h	\
 	wxfred2/help/dlgsexphelp.h \
 	wxfred2/help/dlgsexphelp.cpp \
 	wxfred2/help/dlgaboutbox.h \

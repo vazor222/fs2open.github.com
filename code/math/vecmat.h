@@ -15,7 +15,7 @@
 #include <float.h>
 #include "globalincs/pstypes.h"
 
-//#define _INLINE_VECMAT
+#define _INLINE_VECMAT
 
 #define vm_is_vec_nan(v) (_isnan((v)->xyz.x) || _isnan((v)->xyz.y) || _isnan((v)->xyz.z))
 
@@ -225,10 +225,33 @@ float vm_vec_projection_parallel (vec3d *component, vec3d *src, vec3d *unit_vect
 void vm_vec_projection_onto_plane (vec3d *projection, vec3d *src, vec3d *normal);
 
 //returns magnitude of a vector
-float vm_vec_mag(vec3d *v);
+//float vm_vec_mag(vec3d *v);
+//returns magnitude of a vector
+inline float vm_vec_mag(vec3d *v)
+{
+  float x,y,z,mag1, mag2;
+  x = v->xyz.x*v->xyz.x;
+  y = v->xyz.y*v->xyz.y;
+  z = v->xyz.z*v->xyz.z;
+
+  mag1 = x+y+z;
+
+  mag2 = fl_sqrt(mag1);
+  return mag2;
+}
 
 // returns the square of the magnitude of a vector (useful if comparing distances)
-float vm_vec_mag_squared(vec3d* v);
+//float vm_vec_mag_squared(vec3d* v);
+//returns squared magnitude of a vector, useful if you want to compare distances
+inline float vm_vec_mag_squared(vec3d *v)
+{
+  float x,y,z,mag1;
+  x = v->xyz.x*v->xyz.x;
+  y = v->xyz.y*v->xyz.y;
+  z = v->xyz.z*v->xyz.z;
+  mag1 = x+y+z;
+  return mag1;
+}
 
 // returns the square of the distance between two points (fast and exact)
 float vm_vec_dist_squared(vec3d *v0, vec3d *v1);

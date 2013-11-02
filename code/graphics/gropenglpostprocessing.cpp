@@ -338,6 +338,8 @@ void gr_opengl_post_process_end()
 	GLboolean light = GL_state.Lighting(GL_FALSE);
 	GLboolean blend = GL_state.Blend(GL_FALSE);
 	GLboolean cull = GL_state.CullFace(GL_FALSE);
+  const char *name;
+  float value ;
 
 	GL_state.Texture.SetShaderMode(GL_TRUE);
 
@@ -423,10 +425,10 @@ void gr_opengl_post_process_end()
 
 	for (size_t idx = 0; idx < Post_effects.size(); idx++) {
 		if ( GL_post_shader[Post_active_shader_index].flags2 & (1<<idx) ) {
-			const char *name = Post_effects[idx].uniform_name.c_str();
-			float value = Post_effects[idx].intensity;
+			name = Post_effects[idx].uniform_name.c_str();
+			value = Post_effects[idx].intensity;
 
-			vglUniform1fARB( opengl_shader_get_uniform(name), value);
+			vglUniform1fARB( (name == NULL) ? (-1) : opengl_shader_get_uniform(name), value);
 		}
 	}
 

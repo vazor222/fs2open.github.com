@@ -4855,9 +4855,9 @@ void ship::clear()
 
 	shield_integrity = NULL;
 
-	shield_recharge_index = 0;
-	weapon_recharge_index = 0;
-	engine_recharge_index = 0;
+	shield_recharge_index = INTIAL_SHIELD_RECHARGE_INDEX;
+	weapon_recharge_index = INTIAL_WEAPON_RECHARGE_INDEX;
+	engine_recharge_index = INTIAL_ENGINE_RECHARGE_INDEX;
 	weapon_energy = 0;
 	current_max_speed = 0.0f;
 	next_manage_ets = timestamp(0);
@@ -4982,7 +4982,7 @@ void ship::clear()
 
 	tag_total = 0.0f;
 	tag_left = -1.0f;
-	time_first_tagged = -1;
+	time_first_tagged = 0;
 	level2_tag_total = 0.0f;
 	level2_tag_left = -1.0f;
 
@@ -5184,6 +5184,11 @@ void ship_set(int ship_index, int objnum, int ship_type)
 		else
 			swp->secondary_bank_ammo[i] = fl2i(sip->secondary_bank_ammo_capacity[i] / weapon_size + 0.5f );
 	}
+
+	shipp->armor_type_idx = sip->armor_type_idx;
+	shipp->shield_armor_type_idx = sip->shield_armor_type_idx;
+	shipp->collision_damage_type_idx =  sip->collision_damage_type_idx;
+	shipp->debris_damage_type_idx = sip->debris_damage_type_idx;
 
 	polymodel *pm = model_get(sip->model_num);
 
@@ -10982,7 +10987,6 @@ int ship_fire_secondary( object *obj, int allow_swarm )
 
 
 
-
 	// if trying to fire a swarm missile, make sure being called from right place
 	if ( (wip->wi_flags & WIF_SWARM) && !allow_swarm ) {
 		Assert(wip->swarm_count > 0);
@@ -11147,10 +11151,15 @@ int ship_fire_secondary( object *obj, int allow_swarm )
 				// show the flash only if in not cockpit view, or if "show ship" flag is set
 				shipfx_flash_create(obj, sip->model_num, &pnt, &obj->orient.vec.fvec, 0, weapon);
 			}
+
+			if((wip->wi_flags & WIF_SHUDDER) && (obj == Player_obj) && !(Game_mode & GM_STANDALONE_SERVER)){
+				// calculate some arbitrary value between 100
+				// (mass * velocity) / 10
+				game_shudder_apply(500, (wip->mass * wip->max_speed) * 0.1f);
+			}
 			
 			num_fired++;
-			swp->last_fired_weapon_index = weapon_num;
-			swp->detonate_weapon_time = timestamp(500);		//	Can detonate 1/2 second later.
+			swp->last_fired_weapon_index = weapon_num;			swp->detonate_weapon_time = timestamp(500);		//	Can detonate 1/2 second later.
 			if (weapon_num != -1) {
 				swp->last_fired_weapon_signature = Objects[weapon_num].signature;
 			}
@@ -15305,11 +15314,11 @@ float ship_get_secondary_weapon_range(ship *shipp)
 		weapon_info	*wip;
 		int bank=swp->current_secondary_bank;
 		if (swp->secondary_bank_weapons[bank] >= 0) {
-		wip = &Weapon_info[swp->secondary_bank_weapons[bank]];
-		if ( swp->secondary_bank_ammo[bank] > 0 ) {
-			srange = wip->max_speed * wip->lifetime;
+			wip = &Weapon_info[swp->secondary_bank_weapons[bank]];
+			if ( swp->secondary_bank_ammo[bank] > 0 ) {
+				srange = wip->max_speed * wip->lifetime;
+			}
 		}
-	}
 	}
 
 	return srange;
@@ -15339,14 +15348,14 @@ int get_max_ammo_count_for_primary_bank(int ship_class, int bank, int ammo_type)
 int get_max_ammo_count_for_bank(int ship_class, int bank, int ammo_type)
 {
 	float capacity, size;
-
+    
 	if (ship_class < 0 || bank < 0 || ammo_type < 0) {
 		return 0;
 	} else {
-	capacity = (float) Ship_info[ship_class].secondary_bank_ammo_capacity[bank];
-	size = (float) Weapon_info[ammo_type].cargo_size;
-	return (int) (capacity / size);
-}
+		capacity = (float) Ship_info[ship_class].secondary_bank_ammo_capacity[bank];
+		size = (float) Weapon_info[ammo_type].cargo_size;
+		return (int) (capacity / size);
+	}
 }
 
 /**

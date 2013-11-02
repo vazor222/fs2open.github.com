@@ -318,30 +318,8 @@ float vm_vec_dot3(float x,float y,float z,vec3d *v)
 }
 #endif
 
-//returns magnitude of a vector
-float vm_vec_mag(vec3d *v)
-{
-	float x,y,z,mag1, mag2;
-	x = v->xyz.x*v->xyz.x;
-	y = v->xyz.y*v->xyz.y;
-	z = v->xyz.z*v->xyz.z;
 
-	mag1 = x+y+z;
 
-	mag2 = fl_sqrt(mag1);
-	return mag2;
-}
-
-//returns squared magnitude of a vector, useful if you want to compare distances
-float vm_vec_mag_squared(vec3d *v)
-{
-	float x,y,z,mag1;
-	x = v->xyz.x*v->xyz.x;
-	y = v->xyz.y*v->xyz.y;
-	z = v->xyz.z*v->xyz.z;
-	mag1 = x+y+z;
-	return mag1;
-}
 
 float vm_vec_dist_squared(vec3d *v0, vec3d *v1)
 {

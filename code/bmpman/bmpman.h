@@ -285,4 +285,7 @@ int bm_is_render_target(int bitmap_id);
 int bm_set_render_target(int handle, int face = -1);
 
 int bm_load_and_parse_eff(const char *filename, int dir_type, int *nframes, int *nfps, int *key, ubyte *type);
+
+void bm_free_data(int n, bool release);
+void bm_convert_format( int bitmapnum, bitmap *bmp, ubyte bpp, ubyte flags );
 #endif

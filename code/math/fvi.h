@@ -104,7 +104,76 @@ int fvi_ray_sphere(vec3d *intp, vec3d *p0, vec3d *p1, vec3d *sphere_pos, float s
 // from min to max.   If there was an intersection, then hitpt will contain
 // the point where the ray begins inside the box.
 // Fast ray-box intersection taken from Graphics Gems I, pages 395,736.
-int fvi_ray_boundingbox( vec3d *min, vec3d *max, vec3d * p0, vec3d *pdir, vec3d *hitpt );
+//int fvi_ray_boundingbox( vec3d *min, vec3d *max, vec3d * p0, vec3d *pdir, vec3d *hitpt );
+
+/**
+ * Finds intersection of a ray and an axis-aligned bounding box
+ *
+ * Given a ray with origin at p0, and direction pdir, this function
+ * returns non-zero if that ray intersects an axis-aligned bounding box
+ * from min to max.   If there was an intersection, then hitpt will contain
+ * the point where the ray begins inside the box.
+ * Fast ray-box intersection taken from Graphics Gems I, pages 395,736.
+ */
+inline int fvi_ray_boundingbox( vec3d *min, vec3d *max, vec3d * p0, vec3d *pdir, vec3d *hitpt )
+{
+  bool inside = true;
+  bool middle[3] = { true, true, true };
+  int i;
+  int which_plane;
+  float maxt[3];
+  float candidate_plane[3];
+
+  for (i = 0; i < 3; i++) {
+    if (p0->a1d[i] < min->a1d[i]) {
+      candidate_plane[i] = min->a1d[i];
+      middle[i] = false;
+      inside = false;
+    } else if (p0->a1d[i] > max->a1d[i]) {
+      candidate_plane[i] = max->a1d[i];
+      middle[i] = false;
+      inside = false;
+    }
+  }
+
+  // ray origin inside bounding box
+  if ( inside ) {
+    *hitpt = *p0;
+    return 1;
+  }
+
+  // calculate T distances to candidate plane
+  for (i = 0; i < 3; i++) {
+    if ( !middle[i] && (pdir->a1d[i] != 0.0f) )
+      maxt[i] = (candidate_plane[i] - p0->a1d[i]) / pdir->a1d[i];
+    else
+      maxt[i] = -1.0f;
+  }
+
+  // Get largest of the maxt's for final choice of intersection
+  which_plane = 0;
+  for (i = 1; i < 3; i++) {
+    if (maxt[which_plane] < maxt[i])
+      which_plane = i;
+  }
+
+  // check final candidate actually inside box
+  if (maxt[which_plane] < 0.0f)
+    return 0;
+
+  for (i = 0; i < 3; i++) {
+    if (which_plane != i) {
+      hitpt->a1d[i] = p0->a1d[i] + maxt[which_plane] * pdir->a1d[i];
+
+      if ( (hitpt->a1d[i] < min->a1d[i]) || (hitpt->a1d[i] > max->a1d[i]) )
+        return 0;
+    } else {
+      hitpt->a1d[i] = candidate_plane[i];
+    }
+  }
+
+  return 1;
+}
 
 // sphere polygon collision prototypes
 

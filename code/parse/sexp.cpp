@@ -421,6 +421,8 @@ sexp_oper Operators[] = {
 	{ "never-warp",						OP_WARP_NEVER,							1,	INT_MAX,	SEXP_ACTION_OPERATOR,	},
 	{ "allow-warp",						OP_WARP_ALLOWED,						1,	INT_MAX,	SEXP_ACTION_OPERATOR,	},
 	{ "special-warpout-name",			OP_SET_SPECIAL_WARPOUT_NAME,			2,	2,			SEXP_ACTION_OPERATOR,	},
+	{ "get-ets-value",					OP_GET_ETS_VALUE,						2,	2,			SEXP_ACTION_OPERATOR,	},	// niffiwan
+	{ "set-ets-values",					OP_SET_ETS_VALUES,						4,	INT_MAX,	SEXP_ACTION_OPERATOR,	},	// niffiwan
 
 	//Subsystems and Health Sub-Category
 	{ "ship-invulnerable",				OP_SHIP_INVULNERABLE,					1,	INT_MAX,	SEXP_ACTION_OPERATOR,	},
@@ -1950,15 +1952,15 @@ int check_sexp_syntax(int node, int return_type, int recursive, int *bad_node, i
 				}
 				if ((type == OPF_SHIP_WING_SHIPONTEAM_POINT) && sexp_determine_team(CTEXT(node)) >= 0)	{
 					break;
-						}
+				}
 
 				// only other possibility is waypoints
 				if (type == OPF_SHIP_WING_SHIPONTEAM_POINT || type == OPF_SHIP_WING_POINT || type == OPF_SHIP_WING_POINT_OR_NONE) {
-						if (find_matching_waypoint(CTEXT(node)) == NULL){
-							if (verify_vector(CTEXT(node))){  // non-zero on verify vector mean invalid!
-									return SEXP_CHECK_INVALID_POINT;
-								}
-							}
+					if (find_matching_waypoint(CTEXT(node)) == NULL){
+						if (verify_vector(CTEXT(node))){  // non-zero on verify vector mean invalid!
+							return SEXP_CHECK_INVALID_POINT;
+						}
+					}
 					break;
 				}
 
@@ -4711,8 +4713,8 @@ void sexp_get_object_ship_wing_point_team(object_ship_wing_point_team *oswpt, ch
 	if (team >= 0)
 	{
 		oswpt->type = OSWPT_TYPE_SHIP_ON_TEAM;
-				oswpt->team = team;
-		}
+		oswpt->team = team;
+	}
 
 
 	// check if we have a whole-team type
@@ -4751,12 +4753,12 @@ int sexp_num_ships_in_battle(int n)
 
 	    switch (oswpt1.type){
  		    case OSWPT_TYPE_WHOLE_TEAM:
-				  for ( so = GET_FIRST(&Ship_obj_list); so != END_OF_LIST(&Ship_obj_list); so = GET_NEXT(so) ) {
-					  shipp=&Ships[Objects[so->objnum].instance];
+			  for ( so = GET_FIRST(&Ship_obj_list); so != END_OF_LIST(&Ship_obj_list); so = GET_NEXT(so) ) {
+				  shipp=&Ships[Objects[so->objnum].instance];
 				  if (shipp->team == oswpt1.team) {
-						 count++;
-					  }
+					 count++;
 				  }
+			  }
 			  break;
 
   		    case OSWPT_TYPE_SHIP:
@@ -5219,9 +5221,9 @@ int sexp_has_docked_or_undocked(int n, int op_num)
 
 		if ( mission_log_get_time_indexed(op_num == OP_HAS_DOCKED_DELAY ? LOG_SHIP_DOCKED : LOG_SHIP_UNDOCKED, docker, dockee, count, &time) )
 		{
-	if ( (Missiontime - time) >= delay )
-		return SEXP_KNOWN_TRUE;
-}
+			if ( (Missiontime - time) >= delay )
+				return SEXP_KNOWN_TRUE;
+		}
 	}
 	else
 	{
@@ -5229,14 +5231,14 @@ int sexp_has_docked_or_undocked(int n, int op_num)
 			return SEXP_KNOWN_TRUE;
 	}
 
-		if ( mission_log_get_time(LOG_SHIP_DESTROYED, docker, NULL, NULL) || mission_log_get_time(LOG_SHIP_DESTROYED, dockee, NULL, NULL) )
-			return SEXP_KNOWN_FALSE;
+	if ( mission_log_get_time(LOG_SHIP_DESTROYED, docker, NULL, NULL) || mission_log_get_time(LOG_SHIP_DESTROYED, dockee, NULL, NULL) )
+		return SEXP_KNOWN_FALSE;
 
-		if ( mission_log_get_time(LOG_SELF_DESTRUCTED, docker, NULL, NULL) || mission_log_get_time(LOG_SELF_DESTRUCTED, dockee, NULL, NULL) )
-			return SEXP_KNOWN_FALSE;
+	if ( mission_log_get_time(LOG_SELF_DESTRUCTED, docker, NULL, NULL) || mission_log_get_time(LOG_SELF_DESTRUCTED, dockee, NULL, NULL) )
+		return SEXP_KNOWN_FALSE;
 
-		return SEXP_FALSE;
-	}
+	return SEXP_FALSE;
+}
 
 int sexp_has_arrived_delay(int n)
 {
@@ -7310,7 +7312,7 @@ float get_damage_caused(int damaged_ship, int attacker )
 }
 
 // Karajorma
-int sexp_get_damage_caused(int node) 
+int sexp_get_damage_caused(int node)
 {
 	int sindex, damaged_sig, attacker_sig; 
 	float damage_caused = 0.0f;
@@ -7349,8 +7351,8 @@ int sexp_get_damage_caused(int node)
 			if (sindex < 0) {
 				continue;
 			} else {
-			attacker_sig = Ships_exited[sindex].obj_signature; 
-		}
+				attacker_sig = Ships_exited[sindex].obj_signature;
+			}
 		}
 		else {
 			attacker_sig = Objects[Ships[sindex].objnum].signature ;
@@ -9671,7 +9673,7 @@ void sexp_hud_set_max_targeting_range(int n)
 
 	if (Hud_max_targeting_range < 0) {
 		Hud_max_targeting_range = 0;
-}
+	}
 
 	multi_start_callback();
 	multi_send_int(Hud_max_targeting_range);
@@ -15101,6 +15103,90 @@ int sexp_weapon_recharge_pct(int node)
 	return (int)(100.0f * Energy_levels[Ships[sindex].weapon_recharge_index]);
 }
 
+/**
+ * retrieve one ETS index from a ship
+ */
+int sexp_get_ets_value(int node)
+{
+	int sindex;
+	SCP_string ets_type;
+
+	ets_type = CTEXT(node);
+	node = CDR(node);
+
+	sindex = ship_name_lookup(CTEXT(node));
+	if (sindex < 0) {
+		return SEXP_FALSE;
+	}
+	if (Ships[sindex].objnum < 0) {
+		return SEXP_FALSE;
+	}
+
+	if (!stricmp(ets_type.c_str(), "engine")) {
+		return Ships[sindex].engine_recharge_index;
+	} else if (!stricmp(ets_type.c_str(), "shield")) {
+		return Ships[sindex].shield_recharge_index;
+	} else if (!stricmp(ets_type.c_str(), "weapon")) {
+		return Ships[sindex].weapon_recharge_index;
+	} else {
+		return SEXP_FALSE;
+	}
+}
+
+/**
+ * set all ETS indexes for one or more ships
+ */
+void sexp_set_ets_values(int node)
+{
+	int sindex;
+	int ets_idx[num_retail_ets_gauges];
+
+	ets_idx[ENGINES] = eval_num(node);
+	node = CDR(node);
+	ets_idx[SHIELDS] = eval_num(node);
+	node = CDR(node);
+	ets_idx[WEAPONS] = eval_num(node);
+	node = CDR(node);
+
+	// sanity check inputs
+	sanity_check_ets_inputs(ets_idx);
+
+	multi_start_callback();
+
+	// apply ETS settings to specified ships
+	for ( ; node != -1; node = CDR(node)) {
+		sindex = ship_name_lookup(CTEXT(node));
+
+		if (sindex >= 0 && validate_ship_ets_indxes(sindex, ets_idx)) {
+			Ships[sindex].engine_recharge_index = ets_idx[ENGINES];
+			Ships[sindex].shield_recharge_index = ets_idx[SHIELDS];
+			Ships[sindex].weapon_recharge_index = ets_idx[WEAPONS];
+
+			multi_send_ship(sindex);
+			multi_send_int(ets_idx[ENGINES]);
+			multi_send_int(ets_idx[SHIELDS]);
+			multi_send_int(ets_idx[WEAPONS]);
+		}
+	}
+	multi_end_callback();
+}
+
+void multi_sexp_set_ets_values()
+{
+	int sindex;
+	int ets_idx[num_retail_ets_gauges];
+
+	while (multi_get_ship(sindex)) {
+		multi_get_int(ets_idx[ENGINES]);
+		multi_get_int(ets_idx[SHIELDS]);
+		multi_get_int(ets_idx[WEAPONS]);
+
+		Ships[sindex].engine_recharge_index = ets_idx[ENGINES];
+		Ships[sindex].shield_recharge_index = ets_idx[SHIELDS];
+		Ships[sindex].weapon_recharge_index = ets_idx[WEAPONS];
+	}
+}
+
 int sexp_shield_quad_low(int node)
 {
 	int sindex, idx;	
@@ -19619,6 +19705,10 @@ void sexp_fade(bool fade_in, int duration, ubyte R, ubyte G, ubyte B)
 	}
 }
 
+static int Fade_out_r = -1;
+static int Fade_out_g = -1;
+static int Fade_out_b = -1;
+
 void sexp_fade(int n, bool fade_in)
 {
 	int duration = 0;
@@ -19670,8 +19760,26 @@ void sexp_fade(int n, bool fade_in)
 		// default: fade black
 		else
 		{
-			R = G = B = 0;
+			// Mantis #2944: if we're fading in, and we previously faded out to some specific color, use that same color to fade in
+			if (fade_in && (Fade_out_r >= 0) && (Fade_out_g >= 0) && (Fade_out_b >= 0))
+			{
+				R = Fade_out_r;
+				G = Fade_out_g;
+				B = Fade_out_b;
+			}
+			else
+			{
+				R = G = B = 0;
+			}
 		}
+	}
+
+	// Mantis #2944, if we're fading out to some specific color, save that color
+	if (!fade_in && ((R > 0) || (G > 0) || (B > 0)))
+	{
+		Fade_out_r = R;
+		Fade_out_g = G;
+		Fade_out_b = B;
 	}
 
 	sexp_fade(fade_in, duration, (ubyte) R, (ubyte) G, (ubyte) B);
@@ -21075,7 +21183,7 @@ int sexp_is_in_box(int n)
 	box_corner_2.xyz.z = MAX(z1, z2);
 
 	// Ship to define reference frame is optional
-	object* reference_ship_obj = NULL;
+	object *reference_ship_obj = NULL;
 	if (n != -1)
 	{
 		int sindex = ship_name_lookup(CTEXT(n));
@@ -21095,7 +21203,7 @@ int sexp_is_in_box(int n)
 		case OSWPT_TYPE_WING:
 			for (i = 0; i < oswpt.wingp->current_count; i++)
 				if (!test_point_within_box(&Objects[Ships[oswpt.wingp->ship_index[i]].objnum].pos, &box_corner_1, &box_corner_2, reference_ship_obj))
-		return SEXP_FALSE;
+					return SEXP_FALSE;
 			return SEXP_TRUE;
 
 		case OSWPT_TYPE_SHIP:
@@ -21103,7 +21211,7 @@ int sexp_is_in_box(int n)
 			return test_point_within_box(&oswpt.objp->pos, &box_corner_1, &box_corner_2, reference_ship_obj);
 
 		default:
-		return SEXP_FALSE;
+			return SEXP_FALSE;
 	}
 }
 
@@ -23188,6 +23296,15 @@ int eval_sexp(int cur_node, int referenced_node)
 				sexp_val = sexp_weapon_recharge_pct(node);
 				break;
 
+			case OP_GET_ETS_VALUE:
+				sexp_val = sexp_get_ets_value(node);
+				break;
+
+			case OP_SET_ETS_VALUES:
+				sexp_val = SEXP_TRUE;
+				sexp_set_ets_values(node);
+				break;
+
 			case OP_SHIELD_QUAD_LOW:
 				sexp_val = sexp_shield_quad_low(node);
 				break;
@@ -24045,6 +24162,10 @@ void multi_sexp_eval()
 				sexp_reset_time_compression();
 				break;
 
+			case OP_SET_ETS_VALUES:
+				multi_sexp_set_ets_values();
+				break;
+
 			// bad sexp in the packet
 			default: 
 				// probably just a version error where the host supports a SEXP but a client does not
@@ -24377,6 +24498,7 @@ int query_operator_return_type(int op)
 		case OP_CUTSCENES_GET_FOV:
 		case OP_NUM_VALID_ARGUMENTS:
 		case OP_STRING_GET_LENGTH:
+		case OP_GET_ETS_VALUE:
 			return OPR_POSITIVE;
 
 		case OP_COND:
@@ -24690,6 +24812,7 @@ int query_operator_return_type(int op)
 		case OP_NEBULA_CHANGE_PATTERN:
 		case OP_COPY_VARIABLE_FROM_INDEX:
 		case OP_COPY_VARIABLE_BETWEEN_INDEXES:
+		case OP_SET_ETS_VALUES:
 			return OPR_NULL;
 
 		case OP_AI_CHASE:
@@ -26212,6 +26335,20 @@ int query_operator_argument_type(int op, int argnum)
 		case OP_WEAPON_RECHARGE_PCT:
 		case OP_ENGINE_RECHARGE_PCT:
 			return OPF_SHIP;			
+
+		case OP_GET_ETS_VALUE:
+			if (argnum == 0) {
+				return OPF_STRING;
+			} else {
+				return OPF_SHIP;
+			}
+
+		case OP_SET_ETS_VALUES:
+			if (argnum < 3) {
+				return OPF_POSITIVE;
+			} else {
+				return OPF_SHIP;
+			}
 
 		case OP_SHIELD_QUAD_LOW:
 			if(argnum == 0){
@@ -28453,6 +28590,8 @@ int get_subcategory(int sexp_id)
 		case OP_SECONDARY_FIRED_SINCE:
 		case OP_HAS_PRIMARY_WEAPON:
 		case OP_HAS_SECONDARY_WEAPON:
+		case OP_GET_ETS_VALUE:
+		case OP_SET_ETS_VALUES:
 			return STATUS_SUBCATEGORY_SHIELDS_ENGINES_AND_WEAPONS;
 			
 		case OP_CARGO_KNOWN_DELAY:
@@ -31023,6 +31162,20 @@ sexp_help_struct Sexp_help[] = {
 	{ OP_ENGINE_RECHARGE_PCT, "engine-recharge-pct\r\n"
 		"\tReturns a percentage from 0 to 100\r\n"
 		"\t1: Ship name\r\n" },
+
+	{ OP_GET_ETS_VALUE, "get-ets-values\r\n"
+		"\tGets one ETS index for a ship\r\n"
+		"\t1: ETS index to get, Engine|Shield|Weapon\r\n"
+		"\t2: Ship name\r\n"},
+
+	{ OP_SET_ETS_VALUES, "set-ets-values\r\n"
+		"\tSets ETS indexes for a ship\r\n"
+		"\tUse values retrieved with get-ets-value\r\n"
+		"\tIf you use your own values, make sure they add up to 12\r\n"
+		"\t1: Engine percent\r\n"
+		"\t2: Shields percent\r\n"
+		"\t3: Weapons percent\r\n"
+		"\t4: Ship name\r\n"},
 
 	{ OP_CARGO_NO_DEPLETE, "cargo-no-deplete\r\n"
 		"\tCauses the named ship to have unlimited cargo.\r\n"

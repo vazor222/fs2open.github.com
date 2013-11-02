@@ -1,0 +1,102 @@
+#ifndef _MULTITHREAD_H
+#define _MULTITHREAD_H
+
+#include "object/object.h"
+
+#define MULTITHREADING_ENABLED
+//#define MULTITHREADING_ENABLED2
+//#define MULTITHREADING_ENABLED3
+#define MAX_THREADS                                         256
+
+#define SAFETY_TIME                                         5
+
+#define THREAD_WAIT                                         -1
+#define THREAD_EXIT                                         -2
+
+<<<<<<< HEAD
+#ifdef MULTITHREADING_ENABLED
+#define OPENGL_LOCK                                         if(threads_alive) {pthread_mutex_lock(&render_mutex);}
+#define OPENGL_UNLOCK                                       if(threads_alive) {pthread_mutex_unlock(&render_mutex);}
+#else
+#define OPENGL_LOCK
+#define OPENGL_UNLOCK
+#endif
+
+typedef struct {
+	pthread_t handle;
+	pthread_mutex_t mutex;
+	pthread_cond_t condition;
+} thread_condition;
+
+typedef struct {
+	object *object_1;
+	object *object_2;
+//    unsigned char flags;
+	bool processed;
+	void *operation_func;
+=======
+#define BIT_GET(x, y)                                       (x & (1 << y))
+#define BIT_SET(x, y)                                       (x |= (1 << y))
+#define BIT_CLEAR(x, y)                                     (x &= !(1 << y))
+
+typedef struct
+{
+    pthread_t handle;
+    pthread_mutex_t mutex;
+    pthread_cond_t condition;
+} thread_condition;
+
+typedef struct
+{
+    object *object_1;
+    object *object_2;
+    bool processed;
+    bool collided;
+    bool executed;
+    unsigned char flags;
+    void *operation_func;
+>>>>>>> a2098a7ab7d793a22384d62fcdaf2dca971c4fe4
+} collision_pair;
+
+typedef enum {
+//  THREAD_TYPE_OBJECT_MOVE,
+//  THREAD_TYPE_DOCKING,
+	THREAD_TYPE_COLLISION,
+	THREAD_TYPE_INVALID
+} thread_type;
+
+<<<<<<< HEAD
+typedef enum {
+	COLLISION_PAIR_FLAG_COLLIDED,
+	COLLISION_PAIR_FLAG_RESULT,
+	COLLISION_PAIR_FLAG_EXECUTED,
+	COLLISION_PAIR_FLAG_INVALID
+} collision_pair_flag;
+
+extern pthread_mutex_t render_mutex;
+extern bool threads_alive;
+=======
+typedef enum
+{
+  COLLISION_PAIR_PROCESSED,
+  COLLISION_PAIR_COLLIDED,
+  COLLISION_PAIR_EXECUTED,
+  COLLISION_PAIR_INVALID
+} collision_pair_flags;
+>>>>>>> a2098a7ab7d793a22384d62fcdaf2dca971c4fe4
+
+void create_threads();
+void destroy_threads();
+
+void execute_collisions();
+
+/**
+ * We do not expect this function to run inside a thread
+ * @param object_1
+ * @param object_2
+ */
+void collision_pair_add(object *object_1, object *object_2);
+
+void collision_pair_clear();
+
+#endif

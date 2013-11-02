@@ -137,8 +137,10 @@ extern obj_flag_name Object_flag_names[];
 
 struct dock_instance;
 
-typedef struct object {
-	struct object	*next, *prev;	// for linked lists of objects
+class object
+{
+public:
+	class object	*next, *prev;	// for linked lists of objects
 	int				signature;		// Every object ever has a unique signature...
 	char				type;				// what type of object this is... robot, weapon, hostage, powerup, fireball
 	int				parent;			// This object's parent.
@@ -163,7 +165,11 @@ typedef struct object {
 	dock_instance	*dead_dock_list;	// Goober5000 - objects this object was docked to when destroyed; replaces dock_objnum_when_dead
 
 	int				collision_group_id; // This is a bitfield. Collision checks will be skipped if A->collision_group_id & B->collision_group_id returns nonzero
-} object;
+
+	object();
+	~object();
+	void clear();
+};
 
 struct object_h {
 	object *objp;
@@ -328,5 +334,9 @@ bool object_get_gliding(object *objp);
 bool object_glide_forced(object* objp);
 int obj_get_by_signature(int sig);
 int object_get_model(object *objp);
+
+void obj_move_all_pre(object *objp, float frametime);
+
+void obj_check_object( object *obj );
 
 #endif
