@@ -107,6 +107,7 @@
 #include "io/keycontrol.h"
 #include "parse/generic_log.h"
 #include "localization/localize.h"
+#include "hud/hudets.h"
 
 
 
@@ -1952,15 +1953,15 @@ int check_sexp_syntax(int node, int return_type, int recursive, int *bad_node, i
 				}
 				if ((type == OPF_SHIP_WING_SHIPONTEAM_POINT) && sexp_determine_team(CTEXT(node)) >= 0)	{
 					break;
-						}
+				}
 
 				// only other possibility is waypoints
 				if (type == OPF_SHIP_WING_SHIPONTEAM_POINT || type == OPF_SHIP_WING_POINT || type == OPF_SHIP_WING_POINT_OR_NONE) {
-						if (find_matching_waypoint(CTEXT(node)) == NULL){
-							if (verify_vector(CTEXT(node))){  // non-zero on verify vector mean invalid!
-									return SEXP_CHECK_INVALID_POINT;
-								}
-							}
+					if (find_matching_waypoint(CTEXT(node)) == NULL){
+						if (verify_vector(CTEXT(node))){  // non-zero on verify vector mean invalid!
+							return SEXP_CHECK_INVALID_POINT;
+						}
+					}
 					break;
 				}
 
@@ -4713,8 +4714,8 @@ void sexp_get_object_ship_wing_point_team(object_ship_wing_point_team *oswpt, ch
 	if (team >= 0)
 	{
 		oswpt->type = OSWPT_TYPE_SHIP_ON_TEAM;
-				oswpt->team = team;
-		}
+		oswpt->team = team;
+	}
 
 
 	// check if we have a whole-team type
@@ -4753,12 +4754,12 @@ int sexp_num_ships_in_battle(int n)
 
 	    switch (oswpt1.type){
  		    case OSWPT_TYPE_WHOLE_TEAM:
-				  for ( so = GET_FIRST(&Ship_obj_list); so != END_OF_LIST(&Ship_obj_list); so = GET_NEXT(so) ) {
-					  shipp=&Ships[Objects[so->objnum].instance];
+			  for ( so = GET_FIRST(&Ship_obj_list); so != END_OF_LIST(&Ship_obj_list); so = GET_NEXT(so) ) {
+				  shipp=&Ships[Objects[so->objnum].instance];
 				  if (shipp->team == oswpt1.team) {
-						 count++;
-					  }
+					 count++;
 				  }
+			  }
 			  break;
 
   		    case OSWPT_TYPE_SHIP:
@@ -5221,9 +5222,9 @@ int sexp_has_docked_or_undocked(int n, int op_num)
 
 		if ( mission_log_get_time_indexed(op_num == OP_HAS_DOCKED_DELAY ? LOG_SHIP_DOCKED : LOG_SHIP_UNDOCKED, docker, dockee, count, &time) )
 		{
-	if ( (Missiontime - time) >= delay )
-		return SEXP_KNOWN_TRUE;
-}
+			if ( (Missiontime - time) >= delay )
+				return SEXP_KNOWN_TRUE;
+		}
 	}
 	else
 	{
@@ -5231,14 +5232,14 @@ int sexp_has_docked_or_undocked(int n, int op_num)
 			return SEXP_KNOWN_TRUE;
 	}
 
-		if ( mission_log_get_time(LOG_SHIP_DESTROYED, docker, NULL, NULL) || mission_log_get_time(LOG_SHIP_DESTROYED, dockee, NULL, NULL) )
-			return SEXP_KNOWN_FALSE;
+	if ( mission_log_get_time(LOG_SHIP_DESTROYED, docker, NULL, NULL) || mission_log_get_time(LOG_SHIP_DESTROYED, dockee, NULL, NULL) )
+		return SEXP_KNOWN_FALSE;
 
-		if ( mission_log_get_time(LOG_SELF_DESTRUCTED, docker, NULL, NULL) || mission_log_get_time(LOG_SELF_DESTRUCTED, dockee, NULL, NULL) )
-			return SEXP_KNOWN_FALSE;
+	if ( mission_log_get_time(LOG_SELF_DESTRUCTED, docker, NULL, NULL) || mission_log_get_time(LOG_SELF_DESTRUCTED, dockee, NULL, NULL) )
+		return SEXP_KNOWN_FALSE;
 
-		return SEXP_FALSE;
-	}
+	return SEXP_FALSE;
+}
 
 int sexp_has_arrived_delay(int n)
 {
@@ -7312,7 +7313,7 @@ float get_damage_caused(int damaged_ship, int attacker )
 }
 
 // Karajorma
-int sexp_get_damage_caused(int node) 
+int sexp_get_damage_caused(int node)
 {
 	int sindex, damaged_sig, attacker_sig; 
 	float damage_caused = 0.0f;
@@ -7351,8 +7352,8 @@ int sexp_get_damage_caused(int node)
 			if (sindex < 0) {
 				continue;
 			} else {
-			attacker_sig = Ships_exited[sindex].obj_signature; 
-		}
+				attacker_sig = Ships_exited[sindex].obj_signature;
+			}
 		}
 		else {
 			attacker_sig = Objects[Ships[sindex].objnum].signature ;
@@ -9673,7 +9674,7 @@ void sexp_hud_set_max_targeting_range(int n)
 
 	if (Hud_max_targeting_range < 0) {
 		Hud_max_targeting_range = 0;
-}
+	}
 
 	multi_start_callback();
 	multi_send_int(Hud_max_targeting_range);
@@ -12255,7 +12256,11 @@ void sexp_allow_weapon(int n)
 	}
 }
 
-// generic function for all those sexps that set flags
+/**
+ * generic function for all those sexps that set flags
+ *
+ * @note this function has a similar purpose to sexp_alter_ship_flag_helper; make sure you check/update both
+ */
 void sexp_deal_with_ship_flag(int node, bool process_subsequent_nodes, int object_flag, int object_flag2, int ship_flag, int ship_flag2, int p_object_flag, int p_object_flag2, bool set_it, bool send_multiplayer = false, bool include_players_in_ship_lookup = false)
 {
 	char *ship_name;
@@ -12294,6 +12299,9 @@ void sexp_deal_with_ship_flag(int node, bool process_subsequent_nodes, int objec
 		// if ship is in-mission
 		if (ship_index >= 0)
 		{
+			// save flags for state change comparisons
+			int object_flag_orig = Objects[Ships[ship_index].objnum].flags;
+
 			// see if we have an object flag to set
 			if (object_flag)
 			{
@@ -12302,6 +12310,15 @@ void sexp_deal_with_ship_flag(int node, bool process_subsequent_nodes, int objec
 					Objects[Ships[ship_index].objnum].flags |= object_flag;
 				else
 					Objects[Ships[ship_index].objnum].flags &= ~object_flag;
+			}
+
+			// handle ETS when modifying shields
+			if (object_flag == OF_NO_SHIELDS) {
+				if (set_it) {
+					zero_one_ets(&Ships[ship_index].shield_recharge_index, &Ships[ship_index].weapon_recharge_index, &Ships[ship_index].engine_recharge_index);
+				} else if (object_flag_orig & OF_NO_SHIELDS) {
+					set_default_recharge_rates(&Objects[Ships[ship_index].objnum]);
+				}
 			}
 
 			// see if we have an object flag2 to set
@@ -12477,9 +12494,14 @@ void multi_sexp_deal_with_ship_flag()
 	}
 }
 
+/**
+ * sets flags on objects from alter-ship-flag
+ *
+ * @note this function has a similar purpose to sexp_deal_with_ship_flag; make sure you check/update both
+ */
 void sexp_alter_ship_flag_helper(object_ship_wing_point_team &oswpt, bool future_ships, int object_flag, int object_flag2, int ship_flag, int ship_flag2, int parse_obj_flag, int parse_obj_flag2, int ai_flag, int ai_flag2, bool set_flag)
 {
-	int i;
+	int i, object_flag_orig;
 	ship_obj	*so;
 	object_ship_wing_point_team oswpt2;
 	p_object *p_objp;
@@ -12540,6 +12562,9 @@ void sexp_alter_ship_flag_helper(object_ship_wing_point_team &oswpt, bool future
 
 		// finally! If we actually have a ship, we can set its flags!
 		case OSWPT_TYPE_SHIP:
+			// save flags for state change comparisons
+			object_flag_orig = oswpt.objp->flags;
+
 			// see if we have an object flag to set
 			if (object_flag)
 			{
@@ -12548,6 +12573,15 @@ void sexp_alter_ship_flag_helper(object_ship_wing_point_team &oswpt, bool future
 					oswpt.objp->flags |= object_flag;
 				else
 					oswpt.objp->flags &= ~object_flag;
+			}
+
+			// handle ETS when modifying shields
+			if (object_flag == OF_NO_SHIELDS) {
+				if (set_flag) {
+					zero_one_ets(&oswpt.shipp->shield_recharge_index, &oswpt.shipp->weapon_recharge_index, &oswpt.shipp->engine_recharge_index);
+				} else if (object_flag_orig & OF_NO_SHIELDS) {
+					set_default_recharge_rates(oswpt.objp);
+				}
 			}
 
 			// see if we have an object flag2 to set
@@ -12675,6 +12709,7 @@ void sexp_alter_ship_flag(int node)
 	object_ship_wing_point_team oswpt;
 
 	flag_name = CTEXT(node); 
+
 	for ( i = 0; i < MAX_OBJECT_FLAG_NAMES; i++) {
 		if (!stricmp(Object_flag_names[i].flag_name, flag_name)) {
 			// make sure the list writes to the correct list of flags!
@@ -14853,6 +14888,9 @@ int sexp_is_facing(int node)
 	if (oswpt.type == OSWPT_TYPE_EXITED || oswpt.type == OSWPT_TYPE_PARSE_OBJECT) {
 		return SEXP_CANT_EVAL;
 	}
+
+	if (oswpt.type == OSWPT_TYPE_NONE)
+		return SEXP_CANT_EVAL;
 
 	origin_objp = &Objects[origin_shipp->objnum];
 	target_objp = oswpt.objp;
@@ -21183,7 +21221,7 @@ int sexp_is_in_box(int n)
 	box_corner_2.xyz.z = MAX(z1, z2);
 
 	// Ship to define reference frame is optional
-	object* reference_ship_obj = NULL;
+	object *reference_ship_obj = NULL;
 	if (n != -1)
 	{
 		int sindex = ship_name_lookup(CTEXT(n));
@@ -21203,7 +21241,7 @@ int sexp_is_in_box(int n)
 		case OSWPT_TYPE_WING:
 			for (i = 0; i < oswpt.wingp->current_count; i++)
 				if (!test_point_within_box(&Objects[Ships[oswpt.wingp->ship_index[i]].objnum].pos, &box_corner_1, &box_corner_2, reference_ship_obj))
-		return SEXP_FALSE;
+					return SEXP_FALSE;
 			return SEXP_TRUE;
 
 		case OSWPT_TYPE_SHIP:
@@ -21211,7 +21249,7 @@ int sexp_is_in_box(int n)
 			return test_point_within_box(&oswpt.objp->pos, &box_corner_1, &box_corner_2, reference_ship_obj);
 
 		default:
-		return SEXP_FALSE;
+			return SEXP_FALSE;
 	}
 }
 
@@ -30499,7 +30537,7 @@ sexp_help_struct Sexp_help[] = {
 		"invulnerable - Stops ship from taking any damage\r\n"
 		"protect-ship - Ship and Turret AI will ignore and not attack ship\r\n"
 		"beam-protect-ship - Turrets with beam weapons will ignore and not attack ship\r\n"
-		"no-shields - Ship will have no shields\r\n"
+		"no-shields - Ship will have no shields (ETS will be rebalanced if shields were off and are enabled)\r\n"
 		"targetable-as-bomb - Allows ship to be targetted with the bomb targetting key\r\n"
 		"flak-protect-ship - Turrets with flak weapons will ignore and not attack ship\r\n"
 		"laser-protect-ship - Turrets with laser weapons will ignore and not attack ship\r\n"
@@ -30553,7 +30591,8 @@ sexp_help_struct Sexp_help[] = {
 		"\t1+:\tName of ships to make nontargetable with bomb targeting key." },
 
 	{ OP_SHIELDS_ON, "shields-on\r\n" //-Sesquipedalian
-		"\tCauses the ship listed in this sexpression to have their shields activated.\r\n\r\n"
+		"\tCauses the ship listed in this sexpression to have their shields activated.\r\n"
+		"If the ship had no-shields prior to the sexp being called, the ETS will be rebalanced to default.\r\n"
 		"Takes 1 or more arguments...\r\n"
 		"\t1+:\tName of ships to activate shields on." },
 

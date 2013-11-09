@@ -76,14 +76,14 @@ void parse_mod_table(const char *filename)
 		SCP_string campaign_name; 
 
 		while (optional_string("$Campaign File Name:")) {
-			stuff_string(campaign_name, F_NAME); 
+			stuff_string(campaign_name, F_NAME);
 
 			// remove extension?
 			if (drop_extension(campaign_name)) {
 				mprintf(("Game Settings Table: Removed extension on ignored campaign file name %s\n", campaign_name.c_str()));
 			}
 
-			Ignored_campaigns.push_back(campaign_name); 
+			Ignored_campaigns.push_back(campaign_name);
 		}
 	}
 

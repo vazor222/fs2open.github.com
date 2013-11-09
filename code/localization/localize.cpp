@@ -190,7 +190,7 @@ void lcl_init(int lang_init)
 
 		if(ret == NULL){
 			Error(LOCATION, "Default language not found."); 
-		}
+		}		
 
 		strcpy_s(lang_string, ret);
 		

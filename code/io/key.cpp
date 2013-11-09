@@ -11,12 +11,12 @@
 
 //#define USE_DIRECTINPUT
 
-#ifdef _WIN32
-#include <windows.h>
-#include <windowsx.h>
-#else
+//#ifdef _WIN32
+//#include <windows.h>
+//#include <windowsx.h>
+//#else
 #include "SDL.h"
-#endif
+//#endif
 
 #include "controlconfig/controlsconfig.h" //For textify scancode
 #include "globalincs/pstypes.h"
@@ -58,16 +58,14 @@ keyboard key_data;
 
 int key_inited = 0;
 
-CRITICAL_SECTION key_lock;
+SDL_mutex* key_lock;
 
 //int Backspace_debug=1;	// global flag that will enable/disable the backspace key from stopping execution
 								// This flag was created since the backspace key is also used to correct mistakes
 								// when typing in your pilots callsign.  This global flag is checked before execution
 								// is stopped.
 
-#ifdef SCP_UNIX
-	int SDLtoFS2[SDLK_LAST];
-#endif
+int SDLtoFS2[SDLK_LAST];
 
 int ascii_table[128] = 
 { 255, 255, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',255,255,
@@ -93,14 +91,10 @@ int shifted_ascii_table[128] =
 
 static int Key_numlock_was_on = 0;	// Flag to indicate whether NumLock is on at start
 
-#ifdef _WIN32
-    static int Key_running_NT = 0;		// NT is the OS
-#endif
 
 int Cheats_enabled = 0;
 int Key_normal_game = 0;
 
-#ifdef SCP_UNIX
 /**
  * Keyboard layouts
  */
@@ -289,45 +283,25 @@ void FillSDLArray ()
 	SDLtoFS2[SDLK_PAUSE] = KEY_PAUSE;
 	SDLtoFS2[SDLK_BREAK] = KEY_BREAK;
 }
-#endif
 
 int key_numlock_is_on()
 {
-#ifdef _WIN32
-	unsigned char keys[256];
-	GetKeyboardState(keys);
-	if ( keys[VK_NUMLOCK]  ) {
-		return 1;
-	}
-	return 0;
-#else
 	int keys[SDLK_LAST];
 	SDL_GetKeyState(keys);
 	if ( keys[SDLK_NUMLOCK] ) {
 		return 1;
 	}
 	return 0;
-#endif
 }
 
 void key_turn_off_numlock()
 {
-#ifdef _WIN32
-	unsigned char keys[256];
-	GetKeyboardState(keys);
-	keys[VK_NUMLOCK] = 0;
-	SetKeyboardState(keys);
-#endif
+
 }
 
 void key_turn_on_numlock()
 {
-#ifdef _WIN32
-	unsigned char keys[256];
-	GetKeyboardState(keys);
-	keys[VK_NUMLOCK] = 1;
-	SetKeyboardState(keys);
-#endif
+
 }
 
 //	Convert a BIOS scancode to ASCII.
@@ -608,47 +582,6 @@ float key_down_timef(uint scancode)
 	return i2fl(time_down) / i2fl(delta_time);
 }
 
-/*
-//	Returns amount of time key (specified by "code") has been down since last call.
-//	Returns float, unlike key_down_time() which returns a fix.
-fix key_down_time( uint code )
-{
-	uint time_down, time;
-	uint delta_time;
-
-	if ( !key_inited ) return 0.0f;
-
-	if ((scancode<0)|| (scancode>=NUM_KEYS)) return 0.0f;
-
-	EnterCriticalSection( &key_lock );
-
-	time = timer_get_milliseconds();
-	delta_time = time - TimeKeyDownChecked[scancode];
-	TimeKeyDownChecked[scancode] = time;
-
-	if ( delta_time <= 1 ) {
-		LeaveCriticalSection( &key_lock );
-		if (keyd_pressed[scancode])
-			return F1_0;
-		else
-			return 0;
-	}
-
-	if ( !keyd_pressed[scancode] )	{
-		time_down = key_data.TimeKeyHeldDown[scancode];
-		key_data.TimeKeyHeldDown[scancode] = 0;
-	} else	{
-		time_down =  time - key_data.TimeKeyWentDown[scancode];
-		key_data.TimeKeyWentDown[scancode] = time;
-	}
-
-	LeaveCriticalSection( &key_lock );
-
-	return fixmuldiv( time_down, F1_0, delta_time );
-}
-*/
-
-
 // Returns number of times key has went from up to down since last call.
 int key_down_count(int scancode)	
 {
@@ -707,13 +640,6 @@ void key_mark( uint code, int state, uint latency )
 	if ( code == KEY_SLASH_UK ) {
 		code = KEY_SLASH;
 	}
-
-#ifndef SCP_UNIX
-
-	if ( (code == 0xc5) && !Key_running_NT ) {
-		key_turn_off_numlock();
-	}
-#endif
 
 	Assert( code < NUM_KEYS );	
 
@@ -838,19 +764,9 @@ void key_mark( uint code, int state, uint latency )
 	LEAVE_CRITICAL_SECTION( key_lock );
 }
 
-#ifdef USE_DIRECTINPUT
-void di_cleanup();
-int di_init();
-#endif
-
-
 void key_close()
 {
 	if ( !key_inited ) return;
-
-	#ifdef USE_DIRECTINPUT
-		di_cleanup();
-	#endif
 
 	if ( Key_numlock_was_on ) {
 		key_turn_on_numlock();
@@ -872,9 +788,7 @@ void key_init()
 
 	ENTER_CRITICAL_SECTION( key_lock );
 	
-#ifdef SCP_UNIX
 	FillSDLArray();
-#endif
 
 	keyd_time_when_last_pressed = timer_get_milliseconds();
 	keyd_buffer_type = 1;
@@ -884,25 +798,6 @@ void key_init()
 	key_flush();
 
 	LEAVE_CRITICAL_SECTION( key_lock );
-
-#ifdef _WIN32
-	#ifdef USE_DIRECTINPUT
-		di_init();
-	#endif
-
-	OSVERSIONINFO ver;
-	ver.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-	GetVersionEx(&ver);
-	if ( ver.dwPlatformId == VER_PLATFORM_WIN32_NT ) {
-		Key_running_NT = 1;
-	} else {
-		Key_running_NT = 0;
-		if ( key_numlock_is_on() ) {
-			Key_numlock_was_on = 1;
-			key_turn_off_numlock();
-		}
-	}
-#endif
 
 	atexit(key_close);
 }
@@ -928,291 +823,3 @@ void key_got_focus()
 	
 	key_flush();	
 }
-
-#ifdef USE_DIRECTINPUT
-
-// JAS - April 18, 1998
-// Not using because DI has the following problems:  (Everything else works ok)
-// Under NT, Pause and Numlock report as identical keys.
-// Under 95, Pause is the same as pressing Ctrl then Numlock.  So the game fires each
-// time you hit it.
-// 
-
-//============================================================================
-// Direct Input code
-// For the keyboard, this basically replaces our old functionallity of:
-// WM_KEYDOWN:
-//    key_mark(...);
-// WM_KEYUP:
-//    key_mark(...);
-//============================================================================
-
-
-#include "directx/vdinput.h"
-
-#define MAX_BUFFERED_KEYBOARD_EVENTS 10
-
-static LPDIRECTINPUT			Di_object = NULL;
-static LPDIRECTINPUTDEVICE	Di_keyboard = NULL;
-static HANDLE					Di_thread = NULL;
-static DWORD					Di_thread_id = NULL;
-static HANDLE					Di_event = NULL;
-
-DWORD di_process(DWORD lparam)
-{
-	while (1) {
-		if ( WaitForSingleObject( Di_event, INFINITE )==WAIT_OBJECT_0 )	{
-
-			//mprintf(( "Got event!\n" ));
-
-			HRESULT hr;
-
-			DIDEVICEOBJECTDATA rgdod[10]; 
-			DWORD dwItems = MAX_BUFFERED_KEYBOARD_EVENTS; 
-
-again:;
-			hr = Di_keyboard->GetDeviceData( sizeof(DIDEVICEOBJECTDATA), rgdod,  &dwItems, 0); 
-
-			if (hr == DIERR_INPUTLOST) {
-				/*
-				*  DirectInput is telling us that the input stream has
-				*  been interrupted.  We aren't tracking any state
-				*  between polls, so we don't have any special reset
-				*  that needs to be done.  We just re-acquire and
-				*  try again.
-				*/
-				Sleep(1000);		// Pause a second...
-				hr = Di_keyboard->Acquire();
-				if (SUCCEEDED(hr)) {
-					goto again;
-				}
-			}
-
-			if (SUCCEEDED(hr)) { 
-				 // dwItems = number of elements read (could be zero)
-				 if (hr == DI_BUFFEROVERFLOW) { 
-					// Buffer had overflowed. 
-					mprintf(( "Buffer overflowed!\n" ));
-				 } 
-					int i;
-
-					//mprintf(( "Got %d events\n", dwItems ));
-
-					for (i=0; i<(int)dwItems; i++ )	{
-						int key = rgdod[i].dwOfs;
-						int state = rgdod[i].dwData;
-						int stamp = rgdod[i].dwTimeStamp;
-
-						int latency;
-						latency = timeGetTime() - stamp;
-						if ( latency < 0 )
-							latency=0;
-
-//						if ( key == KEY_PRINT_SCRN )	{
-//							key_mark( key, 1, latency );
-//						}
-//						key_mark( key, (state&0x80?1:0), latency );
-						mprintf(( "Key=%x, State=%x, Time=%d, Latency=%d\n", key, state, stamp, latency ));
-					}
-
-			} 
-		} 
-
-	}
-
-	return 0;
-}
-
-
-int di_init()
-{
-    HRESULT hr;
-
-	 return 0;
-
-
-    /*
-     *  Register with the DirectInput subsystem and get a pointer
-     *  to a IDirectInput interface we can use.
-     *
-     *  Parameters:
-     *
-     *      g_hinst
-     *
-     *          Instance handle to our application or DLL.
-     *
-     *      DIRECTINPUT_VERSION
-     *
-     *          The version of DirectInput we were designed for.
-     *          We take the value from the <dinput.h> header file.
-     *
-     *      &g_pdi
-     *
-     *          Receives pointer to the IDirectInput interface
-     *          that was created.
-     *
-     *      NULL
-     *
-     *          We do not use OLE aggregation, so this parameter
-     *          must be NULL.
-     *
-     */
-    hr = DirectInputCreate(GetModuleHandle(NULL), 0x300, &Di_object, NULL);
-
-    if (FAILED(hr)) {
-        mprintf(( "DirectInputCreate failed!\n" ));
-        return FALSE;
-    }
-
-    /*
-     *  Obtain an interface to the system keyboard device.
-     *
-     *  Parameters:
-     *
-     *      GUID_SysKeyboard
-     *
-     *          The instance GUID for the device we wish to access.
-     *          GUID_SysKeyboard is a predefined instance GUID that
-     *          always refers to the system keyboard device.
-     *
-     *      &g_pKeyboard
-     *
-     *          Receives pointer to the IDirectInputDevice interface
-     *          that was created.
-     *
-     *      NULL
-     *
-     *          We do not use OLE aggregation, so this parameter
-     *          must be NULL.
-     *
-     */
-    hr = Di_object->CreateDevice(GUID_SysKeyboard, &Di_keyboard, NULL);
-
-    if (FAILED(hr)) {
-        mprintf(( "CreateDevice failed!\n" ));
-        return FALSE;
-    }
-
-    /*
-     *  Set the data format to "keyboard format".
-     *
-     *  A data format specifies which controls on a device we
-     *  are interested in, and how they should be reported.
-     *
-     *  This tells DirectInput that we will be passing an array
-     *  of 256 bytes to IDirectInputDevice::GetDeviceState.
-     *
-     *  Parameters:
-     *
-     *      c_dfDIKeyboard
-     *
-     *          Predefined data format which describes
-     *          an array of 256 bytes, one per scancode.
-     */
-    hr = Di_keyboard->SetDataFormat(&c_dfDIKeyboard);
-
-    if (FAILED(hr)) {
-        mprintf(( "SetDataFormat failed!\n" ));
-        return FALSE;
-    }
-
-
-    /*
-     *  Set the cooperativity level to let DirectInput know how
-     *  this device should interact with the system and with other
-     *  DirectInput applications.
-     *
-     *  Parameters:
-     *
-     *      DISCL_NONEXCLUSIVE
-     *
-     *          Retrieve keyboard data when acquired, not interfering
-     *          with any other applications which are reading keyboard
-     *          data.
-     *
-     *      DISCL_FOREGROUND
-     *
-     *          If the user switches away from our application,
-     *          automatically release the keyboard back to the system.
-     *
-     */
-	hr = Di_keyboard->SetCooperativeLevel((HWND)os_get_window(), DISCL_NONEXCLUSIVE | DISCL_FOREGROUND);
-
-	if (FAILED(hr)) {
-		mprintf(( "SetCooperativeLevel failed!\n" ));
-		return FALSE;
-	}
-
-	DIPROPDWORD hdr;
-
-	// Turn on buffering
-	hdr.diph.dwSize = sizeof(DIPROPDWORD); 
-	hdr.diph.dwHeaderSize = sizeof(DIPROPHEADER);
-	hdr.diph.dwObj = 0;		
-	hdr.diph.dwHow = DIPH_DEVICE;	// Apply to entire device
-	hdr.dwData = 16;	//MAX_BUFFERED_KEYBOARD_EVENTS;
-
-	hr = Di_keyboard->SetProperty( DIPROP_BUFFERSIZE, &hdr.diph );
-	if (FAILED(hr)) {
-		mprintf(( "SetProperty DIPROP_BUFFERSIZE failed\n" ));
-		return FALSE;
-	}
-
-
-	Di_event = CreateEvent( NULL, FALSE, FALSE, NULL );
-	Assert(Di_event != NULL);
-
-	Di_thread = CreateThread(NULL, 1024, (LPTHREAD_START_ROUTINE)di_process, NULL, 0, &Di_thread_id);
-	Assert( Di_thread != NULL );
-
-	SetThreadPriority(Di_thread, THREAD_PRIORITY_HIGHEST);
-
-	hr = Di_keyboard->SetEventNotification(Di_event);
-	if (FAILED(hr)) {
-		mprintf(( "SetEventNotification failed\n" ));
-		return FALSE;
-	}
-
-	Di_keyboard->Acquire();
-
-	return TRUE;
-}
-
-void di_cleanup()
-{
-    /*
-     *  Destroy any lingering IDirectInputDevice object.
-     */
-    if (Di_keyboard) {
-
-        /*
-         *  Cleanliness is next to godliness.  Unacquire the device
-         *  one last time just in case we got really confused and tried
-         *  to exit while the device is still acquired.
-         */
-        Di_keyboard->Unacquire();
-
-        Di_keyboard->Release();
-        Di_keyboard = NULL;
-    }
-
-    /*
-     *  Destroy any lingering IDirectInput object.
-     */
-    if (Di_object) {
-        Di_object->Release();
-        Di_object = NULL;
-    }
-
-	if ( Di_event )	{
-		CloseHandle(Di_event);
-		Di_event = NULL;
-	}
-
-}
-
-#endif
-
-
-
-

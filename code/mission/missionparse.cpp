@@ -210,7 +210,7 @@ char Cargo_names_buf[MAX_CARGO][NAME_LENGTH];
 
 char *Ship_class_names[MAX_SHIP_CLASSES];		// to be filled in from Ship_info array
 
-char *Icon_names[MAX_BRIEF_ICONS] = {
+char *Icon_names[MIN_BRIEF_ICONS] = {
 	"Fighter", "Fighter Wing", "Cargo", "Cargo Wing", "Largeship",
 	"Largeship Wing", "Capital", "Planet", "Asteroid Field", "Waypoint",
 	"Support Ship", "Freighter(no cargo)", "Freighter(has cargo)",
@@ -1503,6 +1503,14 @@ void parse_briefing(mission *pm, int flags)
 					if ( val>0 ) {
 						bi->flags |= BI_MIRROR_ICON;
 					}	
+				}
+
+				if (optional_string("$use wing icon:"))
+				{
+					stuff_int(&val);
+					if ( val>0 ) {
+						bi->flags |= BI_USE_WING_ICON;
+					}
 				}
 
 				required_string("$multi_text");

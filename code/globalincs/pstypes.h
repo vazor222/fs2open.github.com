@@ -24,6 +24,8 @@
 
 #include "windows_stub/config.h"
 
+#include "SDL.h"
+
 // value to represent an uninitialized state in any int or uint
 #define UNINITIALIZED 0x7f8e6d9c
 
@@ -746,10 +748,10 @@ typedef struct script_hook
 	//Actual hook
 	int h_language;
 	int h_index;
+} script_hook;
 
-	script_hook(){o_language=h_language=0;o_index=h_index=-1;}
-	bool IsValid(){return (h_index > -1);}
-}script_hook;
+extern void script_hook_init(script_hook *hook);
+extern bool script_hook_valid(script_hook *hook);
 
 class camid
 {

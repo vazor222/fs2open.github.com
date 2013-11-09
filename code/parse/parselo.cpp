@@ -1757,19 +1757,19 @@ int strip_comments(char *line, int in_multiline_comment)
 		// check whether major, minor, and build line up with this version
 		if (major > FS_VERSION_MAJOR)
 		{
-			goto done_with_line;
+ 			goto done_with_line;
 		}
 		else if (major == FS_VERSION_MAJOR)
 		{
-		if (minor > FS_VERSION_MINOR)
+			if (minor > FS_VERSION_MINOR)
 			{
-			goto done_with_line;
+				goto done_with_line;
 			}
 			else if (minor == FS_VERSION_MINOR)
 			{
-		if (build > FS_VERSION_BUILD)
+				if (build > FS_VERSION_BUILD)
 				{
-			goto done_with_line;
+					goto done_with_line;
 				}
 			}
 		}
