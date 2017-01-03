@@ -68,6 +68,7 @@ BEGIN_MESSAGE_MAP(CFREDDoc, CDocument)
 	ON_COMMAND(ID_EDIT_PASTE, OnEditPaste)
 	ON_COMMAND(ID_EDIT_UNDO, OnEditUndo)
 	ON_COMMAND(ID_FILE_IMPORT_FSM, OnFileImportFSM)
+	ON_COMMAND(ID_IMPORT_XWIMISSION, OnFileImportXWI)
 	//}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -558,6 +559,42 @@ void CFREDDoc::OnFileImportFSM() {
 	create_new_mission();
 
 	MessageBox(NULL, "Import complete.  Please check the destination folder to verify all missions were imported successfully.", "Status", MB_OK);
+	recreate_dialogs();
+}
+
+void CFREDDoc::OnFileImportXWI() {
+	char xwi_mission_path[MAX_PATH_LEN];
+	char fs2_mission_path[MAX_PATH_LEN];
+	char dest_directory[MAX_PATH + 1];
+
+	// path stuff
+	{
+		char *ch;
+
+		// get base paths
+		strcpy_s(xwi_mission_path, Fred_exe_dir);
+		ch = strrchr(xwi_mission_path, DIR_SEPARATOR_CHAR);
+		if (ch != NULL)
+			*ch = '\0';
+		strcpy_s(fs2_mission_path, Fred_exe_dir);
+		ch = strrchr(fs2_mission_path, DIR_SEPARATOR_CHAR);
+		if (ch != NULL)
+			*ch = '\0';
+
+		// estimate the mission path for XWI
+		if ((ch = stristr(xwi_mission_path, "FreeSpace2")) != NULL) {
+			strcpy(ch, "XWIImport\\Data\\Missions");
+		}
+
+		// estimate the mission path for FS2
+		strcat_s(fs2_mission_path, "\\Data\\Missions");
+	}
+
+	// if mission has been modified, offer to save before continuing.
+	if (!SaveModified())
+		return;
+
+	MessageBox(NULL, "Hello Vazor!", "Status", MB_OK);
 	recreate_dialogs();
 }
 

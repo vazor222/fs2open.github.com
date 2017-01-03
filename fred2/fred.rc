@@ -186,185 +186,186 @@ END
 // Menu
 //
 
-IDR_MAINMENU MENU
+IDR_MAINMENU MENUEX
 BEGIN
-    POPUP "&File"
+    POPUP "&File",                          65535,MFT_STRING,MFS_ENABLED
     BEGIN
-        MENUITEM "&New\tCtrl+N",                57600
-        MENUITEM "&Open...\tCtrl+O",            57601
-        MENUITEM "&Save\tCtrl+S",               57603
-        MENUITEM "Save &As...",                 57604
-        MENUITEM "Re&vert",                     33000
-        MENUITEM SEPARATOR
-        POPUP "Save &Format"
+        MENUITEM "&New\tCtrl+N",                57600,MFT_STRING,MFS_ENABLED
+        MENUITEM "&Open...\tCtrl+O",            57601,MFT_STRING,MFS_ENABLED
+        MENUITEM "&Save\tCtrl+S",               57603,MFT_STRING,MFS_ENABLED
+        MENUITEM "Save &As...",                 57604,MFT_STRING,MFS_ENABLED
+        MENUITEM "Re&vert",                     33000,MFT_STRING,MFS_ENABLED
+        MENUITEM MFT_SEPARATOR
+        POPUP "Save &Format",                   65535,MFT_STRING,MFS_ENABLED
         BEGIN
-            MENUITEM "FS2 Open",                    33069, CHECKED
-            MENUITEM "FS2 Retail",                  33070
-            MENUITEM "Here Be Dragons",             33092
+            MENUITEM "FS2 Open",                    33069,MFT_STRING,MFS_CHECKED
+            MENUITEM "FS2 Retail",                  33070,MFT_STRING,MFS_ENABLED
+            MENUITEM "Here Be Dragons",             33092,MFT_STRING,MFS_ENABLED
         END
-        POPUP "&Import"
+        POPUP "&Import",                        65535,MFT_STRING,MFS_ENABLED
         BEGIN
-            MENUITEM "&FreeSpace 1 mission...",     33074
+            MENUITEM "&FreeSpace 1 mission...",     33074,MFT_STRING,MFS_ENABLED
+            MENUITEM "&XWI mission...",             ID_IMPORT_XWIMISSION,MFT_STRING,MFS_ENABLED
         END
-        MENUITEM SEPARATOR
-        MENUITEM "&Run FreeSpace\tAlt+R",       32985
-        MENUITEM SEPARATOR
-        MENUITEM "Recent File",                 57616, GRAYED
-        MENUITEM SEPARATOR
-        MENUITEM "E&xit",                       57665
+        MENUITEM MFT_SEPARATOR
+        MENUITEM "&Run FreeSpace\tAlt+R",       32985,MFT_STRING,MFS_ENABLED
+        MENUITEM MFT_SEPARATOR
+        MENUITEM "Recent File",                 57616,MFT_STRING,MFS_GRAYED
+        MENUITEM MFT_SEPARATOR
+        MENUITEM "E&xit",                       57665,MFT_STRING,MFS_ENABLED
     END
-    POPUP "&Edit"
+    POPUP "&Edit",                          65535,MFT_STRING,MFS_ENABLED
     BEGIN
-        MENUITEM "Undo\tCtrl+Z",                57643
-        MENUITEM "Delete\tDel",                 32789
-        MENUITEM "Delete Wing\tCtrl+Del",       33035
-        MENUITEM SEPARATOR
-        MENUITEM "Disable Undo",                33055
+        MENUITEM "Undo\tCtrl+Z",                57643,MFT_STRING,MFS_ENABLED
+        MENUITEM "Delete\tDel",                 32789,MFT_STRING,MFS_ENABLED
+        MENUITEM "Delete Wing\tCtrl+Del",       33035,MFT_STRING,MFS_ENABLED
+        MENUITEM MFT_SEPARATOR
+        MENUITEM "Disable Undo",                33055,MFT_STRING,MFS_ENABLED
     END
-    POPUP "&View"
+    POPUP "&View",                          65535,MFT_STRING,MFS_ENABLED
     BEGIN
-        MENUITEM "&Toolbar",                    59392, CHECKED
-        MENUITEM "&Status Bar",                 59393, CHECKED
-        MENUITEM SEPARATOR
-        POPUP "Display Filter"
+        MENUITEM "&Toolbar",                    59392,MFT_STRING,MFS_CHECKED
+        MENUITEM "&Status Bar",                 59393,MFT_STRING,MFS_CHECKED
+        MENUITEM MFT_SEPARATOR
+        POPUP "Display Filter",                 65535,MFT_STRING,MFS_ENABLED
         BEGIN
-            MENUITEM "Show Ships",                  32990
-            MENUITEM "Show Player Starts",          32991
-            MENUITEM "Show Waypoints",              1075
-            MENUITEM SEPARATOR
-            MENUITEM "Show IFF 0",                  33081
-            MENUITEM "Show IFF 1",                  33082
-            MENUITEM "Show IFF 2",                  33083
-            MENUITEM "Show IFF 3",                  33084
-            MENUITEM "Show IFF 4",                  33085
-            MENUITEM "Show IFF 5",                  33086
-            MENUITEM "Show IFF 6",                  33087
-            MENUITEM "Show IFF 7",                  33088
-            MENUITEM "Show IFF 8",                  33089
-            MENUITEM "Show IFF 9",                  32988
+            MENUITEM "Show Ships",                  32990,MFT_STRING,MFS_ENABLED
+            MENUITEM "Show Player Starts",          32991,MFT_STRING,MFS_ENABLED
+            MENUITEM "Show Waypoints",              1075,MFT_STRING,MFS_ENABLED
+            MENUITEM MFT_SEPARATOR
+            MENUITEM "Show IFF 0",                  33081,MFT_STRING,MFS_ENABLED
+            MENUITEM "Show IFF 1",                  33082,MFT_STRING,MFS_ENABLED
+            MENUITEM "Show IFF 2",                  33083,MFT_STRING,MFS_ENABLED
+            MENUITEM "Show IFF 3",                  33084,MFT_STRING,MFS_ENABLED
+            MENUITEM "Show IFF 4",                  33085,MFT_STRING,MFS_ENABLED
+            MENUITEM "Show IFF 5",                  33086,MFT_STRING,MFS_ENABLED
+            MENUITEM "Show IFF 6",                  33087,MFT_STRING,MFS_ENABLED
+            MENUITEM "Show IFF 7",                  33088,MFT_STRING,MFS_ENABLED
+            MENUITEM "Show IFF 8",                  33089,MFT_STRING,MFS_ENABLED
+            MENUITEM "Show IFF 9",                  32988,MFT_STRING,MFS_ENABLED
         END
-        MENUITEM SEPARATOR
-        MENUITEM "Hide Marked Objects",         33002
-        MENUITEM "Show Hidden Objects",         33003
-        MENUITEM SEPARATOR
-        MENUITEM "Show Ship Models\tShift+Alt+M", 32820, CHECKED
-        MENUITEM "Show Outlines\tShift+Alt+O",  32980
-        MENUITEM "Show Ship Info\tShift+Alt+I", 32823, CHECKED, HELP
-        MENUITEM "Show Coordinates\tShift+Alt+C", 32915
-        MENUITEM "Show Grid Positions\tShift+Alt+P", 32914
-        MENUITEM "Show Distances\tD",           32941
-        MENUITEM "Show Model Paths",            33066
-        MENUITEM "Show Model Dock Points",      33065
-        MENUITEM SEPARATOR
-        MENUITEM "Show &Grid\tShift+Alt+G",     32808
-        MENUITEM "Show Horizon\tShift+Alt+H",   32954
-        MENUITEM "Double Fine Gridlines",       32939
-        MENUITEM "Anti-Aliased Gridlines",      33048
-        MENUITEM "Show 3D Compass\tShift+Alt+3", 32832, CHECKED
-        MENUITEM "Show Background\tShift+Alt+B", 32983
-        MENUITEM SEPARATOR
-        POPUP "Viewpoint\tShift+V"
+        MENUITEM MFT_SEPARATOR
+        MENUITEM "Hide Marked Objects",         33002,MFT_STRING,MFS_ENABLED
+        MENUITEM "Show Hidden Objects",         33003,MFT_STRING,MFS_ENABLED
+        MENUITEM MFT_SEPARATOR
+        MENUITEM "Show Ship Models\tShift+Alt+M", 32820,MFT_STRING,MFS_CHECKED
+        MENUITEM "Show Outlines\tShift+Alt+O",  32980,MFT_STRING,MFS_ENABLED
+        MENUITEM "Show Ship Info\tShift+Alt+I", 32823,MFT_STRING | MFT_RIGHTJUSTIFY,MFS_CHECKED
+        MENUITEM "Show Coordinates\tShift+Alt+C", 32915,MFT_STRING,MFS_ENABLED
+        MENUITEM "Show Grid Positions\tShift+Alt+P", 32914,MFT_STRING,MFS_ENABLED
+        MENUITEM "Show Distances\tD",           32941,MFT_STRING,MFS_ENABLED
+        MENUITEM "Show Model Paths",            33066,MFT_STRING,MFS_ENABLED
+        MENUITEM "Show Model Dock Points",      33065,MFT_STRING,MFS_ENABLED
+        MENUITEM MFT_SEPARATOR
+        MENUITEM "Show &Grid\tShift+Alt+G",     32808,MFT_STRING,MFS_ENABLED
+        MENUITEM "Show Horizon\tShift+Alt+H",   32954,MFT_STRING,MFS_ENABLED
+        MENUITEM "Double Fine Gridlines",       32939,MFT_STRING,MFS_ENABLED
+        MENUITEM "Anti-Aliased Gridlines",      33048,MFT_STRING,MFS_ENABLED
+        MENUITEM "Show 3D Compass\tShift+Alt+3", 32832,MFT_STRING,MFS_CHECKED
+        MENUITEM "Show Background\tShift+Alt+B", 32983,MFT_STRING,MFS_ENABLED
+        MENUITEM MFT_SEPARATOR
+        POPUP "Viewpoint\tShift+V",             65535,MFT_STRING,MFS_ENABLED
         BEGIN
-            MENUITEM "Camera",                      32835, CHECKED
-            MENUITEM "Current Ship",                32837
+            MENUITEM "Camera",                      32835,MFT_STRING,MFS_CHECKED
+            MENUITEM "Current Ship",                32837,MFT_STRING,MFS_ENABLED
         END
-        MENUITEM "Save Camera Pos\tCtrl+P",     33008
-        MENUITEM "Restore Camera Pos\tCtrl+R",  33009
-        MENUITEM SEPARATOR
-        MENUITEM "Lighting from Suns",          33079
-        MENUITEM "Render full detail",          33090
+        MENUITEM "Save Camera Pos\tCtrl+P",     33008,MFT_STRING,MFS_ENABLED
+        MENUITEM "Restore Camera Pos\tCtrl+R",  33009,MFT_STRING,MFS_ENABLED
+        MENUITEM MFT_SEPARATOR
+        MENUITEM "Lighting from Suns",          33079,MFT_STRING,MFS_ENABLED
+        MENUITEM "Render full detail",          33090,MFT_STRING,MFS_ENABLED
     END
-    POPUP "&Speed"
+    POPUP "&Speed",                         65535,MFT_STRING,MFS_ENABLED
     BEGIN
-        POPUP "Movement"
+        POPUP "Movement",                       65535,MFT_STRING,MFS_ENABLED
         BEGIN
-            MENUITEM "x1\t1",                       32898, CHECKED
-            MENUITEM "x2\t2",                       32899
-            MENUITEM "x3\t3",                       32902
-            MENUITEM "x5\t4",                       32900
-            MENUITEM "x8\t5",                       32908
-            MENUITEM "x10\t6",                      32901
-            MENUITEM "x50\t7",                      32917
-            MENUITEM "x100\t8",                     32918
+            MENUITEM "x1\t1",                       32898,MFT_STRING,MFS_CHECKED
+            MENUITEM "x2\t2",                       32899,MFT_STRING,MFS_ENABLED
+            MENUITEM "x3\t3",                       32902,MFT_STRING,MFS_ENABLED
+            MENUITEM "x5\t4",                       32900,MFT_STRING,MFS_ENABLED
+            MENUITEM "x8\t5",                       32908,MFT_STRING,MFS_ENABLED
+            MENUITEM "x10\t6",                      32901,MFT_STRING,MFS_ENABLED
+            MENUITEM "x50\t7",                      32917,MFT_STRING,MFS_ENABLED
+            MENUITEM "x100\t8",                     32918,MFT_STRING,MFS_ENABLED
         END
-        POPUP "Rotation"
+        POPUP "Rotation",                       65535,MFT_STRING,MFS_ENABLED
         BEGIN
-            MENUITEM "x1\tShift+1",                 32903, CHECKED
-            MENUITEM "x5\tShift+2",                 32904
-            MENUITEM "x12\tShift+3",                32905
-            MENUITEM "x25\tShift+4",                32906
-            MENUITEM "x50\tShift+5",                32907
-        END
-    END
-    POPUP "E&ditors"
-    BEGIN
-        MENUITEM "&Ships\tShift+S",             32799
-        MENUITEM "&Wings\tShift+W",             32955
-        MENUITEM "Objects\tShift+O",            32973
-        MENUITEM "Waypoint Paths\tShift+Y",     32979
-        MENUITEM "Mission &Objectives\tShift+G", 32800
-        MENUITEM "&Events\tShift+E",            32974
-        MENUITEM "Team Loadout\tShift+P",       32972
-        MENUITEM "Background\tShift+I",         32976
-        MENUITEM "Reinforcements\tShift+R",     32977
-        MENUITEM "Asteroid Field\tShift+A",     32984
-        MENUITEM "&Mission Specs\tShift+N",     32771
-        MENUITEM "&Briefing\tShift+B",          33006
-        MENUITEM "&Debriefing\tShift+D",        33007
-        MENUITEM "Command Briefing\tShift+C",   33054
-        MENUITEM "Fiction Viewer\tShift+F",     ID_EDITORS_FICTION
-        MENUITEM "Shield System",               33033
-        MENUITEM "Set Global Ship Flags",       33073
-        MENUITEM "Voice Acting Manager",        ID_EDITORS_VOICE
-        MENUITEM SEPARATOR
-        MENUITEM "Campaign",                    32986
-    END
-    POPUP "&Groups"
-    BEGIN
-        MENUITEM "Group 1\tCtrl+1",             33012
-        MENUITEM "Group 2\tCtrl+2",             33013
-        MENUITEM "Group 3\tCtrl+3",             33014
-        MENUITEM "Group 4\tCtrl+4",             33015
-        MENUITEM "Group 5\tCtrl+5",             33016
-        MENUITEM "Group 6\tCtrl+6",             33017
-        MENUITEM "Group 7\tCtrl+7",             33018
-        MENUITEM "Group 8\tCtrl+8",             33019
-        MENUITEM "Group 9\tCtrl+9",             33020
-        POPUP "Set Group"
-        BEGIN
-            MENUITEM "Group 1",                     33021
-            MENUITEM "Group 2",                     33022
-            MENUITEM "Group 3",                     33023
-            MENUITEM "Group 4",                     33024
-            MENUITEM "Group 5",                     33025
-            MENUITEM "Group 6",                     33026
-            MENUITEM "Group 7",                     33027
-            MENUITEM "Group 8",                     33028
-            MENUITEM "Group 9",                     33029
+            MENUITEM "x1\tShift+1",                 32903,MFT_STRING,MFS_CHECKED
+            MENUITEM "x5\tShift+2",                 32904,MFT_STRING,MFS_ENABLED
+            MENUITEM "x12\tShift+3",                32905,MFT_STRING,MFS_ENABLED
+            MENUITEM "x25\tShift+4",                32906,MFT_STRING,MFS_ENABLED
+            MENUITEM "x50\tShift+5",                32907,MFT_STRING,MFS_ENABLED
         END
     END
-    POPUP "&Misc"
+    POPUP "E&ditors",                       65535,MFT_STRING,MFS_ENABLED
     BEGIN
-        MENUITEM "Level Object\tL",             33037
-        MENUITEM "Align Object\tCtrl+L",        33036
-        MENUITEM "Mark Wing\tW",                33038
-        MENUITEM "Control Object\tT",           33041
-        MENUITEM "Next Object\tTab",            33039
-        MENUITEM "Previous Object\tCtrl+Tab",   33040
-        MENUITEM "Adjust Grid",                 33032
-        MENUITEM "Next Subsystem\tK",           33059
-        MENUITEM "Prev Subsystem\tShift+K",     33060
-        MENUITEM "Cancel Subsystem\tAlt+K",     33061
-        MENUITEM "Mission Statistics\tCtrl+Shift+D", 33067
-        MENUITEM SEPARATOR
-        MENUITEM "Error checker\tShift+H",      32978
+        MENUITEM "&Ships\tShift+S",             32799,MFT_STRING,MFS_ENABLED
+        MENUITEM "&Wings\tShift+W",             32955,MFT_STRING,MFS_ENABLED
+        MENUITEM "Objects\tShift+O",            32973,MFT_STRING,MFS_ENABLED
+        MENUITEM "Waypoint Paths\tShift+Y",     32979,MFT_STRING,MFS_ENABLED
+        MENUITEM "Mission &Objectives\tShift+G", 32800,MFT_STRING,MFS_ENABLED
+        MENUITEM "&Events\tShift+E",            32974,MFT_STRING,MFS_ENABLED
+        MENUITEM "Team Loadout\tShift+P",       32972,MFT_STRING,MFS_ENABLED
+        MENUITEM "Background\tShift+I",         32976,MFT_STRING,MFS_ENABLED
+        MENUITEM "Reinforcements\tShift+R",     32977,MFT_STRING,MFS_ENABLED
+        MENUITEM "Asteroid Field\tShift+A",     32984,MFT_STRING,MFS_ENABLED
+        MENUITEM "&Mission Specs\tShift+N",     32771,MFT_STRING,MFS_ENABLED
+        MENUITEM "&Briefing\tShift+B",          33006,MFT_STRING,MFS_ENABLED
+        MENUITEM "&Debriefing\tShift+D",        33007,MFT_STRING,MFS_ENABLED
+        MENUITEM "Command Briefing\tShift+C",   33054,MFT_STRING,MFS_ENABLED
+        MENUITEM "Fiction Viewer\tShift+F",     ID_EDITORS_FICTION,MFT_STRING,MFS_ENABLED
+        MENUITEM "Shield System",               33033,MFT_STRING,MFS_ENABLED
+        MENUITEM "Set Global Ship Flags",       33073,MFT_STRING,MFS_ENABLED
+        MENUITEM "Voice Acting Manager",        ID_EDITORS_VOICE,MFT_STRING,MFS_ENABLED
+        MENUITEM MFT_SEPARATOR
+        MENUITEM "Campaign",                    32986,MFT_STRING,MFS_ENABLED
     END
-    POPUP "&Help"
+    POPUP "&Groups",                        65535,MFT_STRING,MFS_ENABLED
     BEGIN
-        MENUITEM "&Help Topics",                57667
-        MENUITEM SEPARATOR
-        MENUITEM "&About FRED2",                57664
-        MENUITEM "Show Sexp Help",              33010
+        MENUITEM "Group 1\tCtrl+1",             33012,MFT_STRING,MFS_ENABLED
+        MENUITEM "Group 2\tCtrl+2",             33013,MFT_STRING,MFS_ENABLED
+        MENUITEM "Group 3\tCtrl+3",             33014,MFT_STRING,MFS_ENABLED
+        MENUITEM "Group 4\tCtrl+4",             33015,MFT_STRING,MFS_ENABLED
+        MENUITEM "Group 5\tCtrl+5",             33016,MFT_STRING,MFS_ENABLED
+        MENUITEM "Group 6\tCtrl+6",             33017,MFT_STRING,MFS_ENABLED
+        MENUITEM "Group 7\tCtrl+7",             33018,MFT_STRING,MFS_ENABLED
+        MENUITEM "Group 8\tCtrl+8",             33019,MFT_STRING,MFS_ENABLED
+        MENUITEM "Group 9\tCtrl+9",             33020,MFT_STRING,MFS_ENABLED
+        POPUP "Set Group",                      65535,MFT_STRING,MFS_ENABLED
+        BEGIN
+            MENUITEM "Group 1",                     33021,MFT_STRING,MFS_ENABLED
+            MENUITEM "Group 2",                     33022,MFT_STRING,MFS_ENABLED
+            MENUITEM "Group 3",                     33023,MFT_STRING,MFS_ENABLED
+            MENUITEM "Group 4",                     33024,MFT_STRING,MFS_ENABLED
+            MENUITEM "Group 5",                     33025,MFT_STRING,MFS_ENABLED
+            MENUITEM "Group 6",                     33026,MFT_STRING,MFS_ENABLED
+            MENUITEM "Group 7",                     33027,MFT_STRING,MFS_ENABLED
+            MENUITEM "Group 8",                     33028,MFT_STRING,MFS_ENABLED
+            MENUITEM "Group 9",                     33029,MFT_STRING,MFS_ENABLED
+        END
+    END
+    POPUP "&Misc",                          65535,MFT_STRING,MFS_ENABLED
+    BEGIN
+        MENUITEM "Level Object\tL",             33037,MFT_STRING,MFS_ENABLED
+        MENUITEM "Align Object\tCtrl+L",        33036,MFT_STRING,MFS_ENABLED
+        MENUITEM "Mark Wing\tW",                33038,MFT_STRING,MFS_ENABLED
+        MENUITEM "Control Object\tT",           33041,MFT_STRING,MFS_ENABLED
+        MENUITEM "Next Object\tTab",            33039,MFT_STRING,MFS_ENABLED
+        MENUITEM "Previous Object\tCtrl+Tab",   33040,MFT_STRING,MFS_ENABLED
+        MENUITEM "Adjust Grid",                 33032,MFT_STRING,MFS_ENABLED
+        MENUITEM "Next Subsystem\tK",           33059,MFT_STRING,MFS_ENABLED
+        MENUITEM "Prev Subsystem\tShift+K",     33060,MFT_STRING,MFS_ENABLED
+        MENUITEM "Cancel Subsystem\tAlt+K",     33061,MFT_STRING,MFS_ENABLED
+        MENUITEM "Mission Statistics\tCtrl+Shift+D", 33067,MFT_STRING,MFS_ENABLED
+        MENUITEM MFT_SEPARATOR
+        MENUITEM "Error checker\tShift+H",      32978,MFT_STRING,MFS_ENABLED
+    END
+    POPUP "&Help",                          65535,MFT_STRING,MFS_ENABLED
+    BEGIN
+        MENUITEM "&Help Topics",                57667,MFT_STRING,MFS_ENABLED
+        MENUITEM MFT_SEPARATOR
+        MENUITEM "&About FRED2",                57664,MFT_STRING,MFS_ENABLED
+        MENUITEM "Show Sexp Help",              33010,MFT_STRING,MFS_ENABLED
     END
 END
 
