@@ -581,11 +581,6 @@ void CFREDDoc::OnFileImportXWI() {
 		if (ch != NULL)
 			*ch = '\0';
 
-		// estimate the mission path for XWI
-		if ((ch = stristr(xwi_mission_path, "FreeSpace2")) != NULL) {
-			strcpy(ch, "XWIImport\\Data\\Missions");
-		}
-
 		// estimate the mission path for FS2
 		strcat_s(fs2_mission_path, "\\Data\\Missions");
 	}
@@ -594,7 +589,55 @@ void CFREDDoc::OnFileImportXWI() {
 	if (!SaveModified())
 		return;
 
-	MessageBox(NULL, "Hello Vazor!", "Status", MB_OK);
+
+	// get location to import from
+	CFileDialog dlgFile(TRUE, "xwi", NULL, OFN_HIDEREADONLY | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR | OFN_ALLOWMULTISELECT, "XWI Missions (*.xwi)|*.xwi|All files (*.*)|*.*||");
+	dlgFile.m_ofn.lpstrTitle = "Select one or more missions to import";
+	dlgFile.m_ofn.lpstrInitialDir = xwi_mission_path;
+
+	// get XWI files
+	if (dlgFile.DoModal() != IDOK)
+		return;
+
+
+	// zero out dest_directory bytes and get final directory from user
+	memset(dest_directory, 0, sizeof(dest_directory));
+	
+#if ( _MFC_VER >= 0x0700 )
+	//ITEMIDLIST fs2_mission_pidl = {0};
+
+	//SHParseDisplayName(A2CW(fs2_mission_path), NULL, fs2_mission_pidl, 0, 0);
+
+	BROWSEINFO bi;
+	bi.hwndOwner = theApp.GetMainWnd()->GetSafeHwnd();
+	//bi.pidlRoot = &fs2_mission_pidl;
+	bi.pidlRoot = NULL;
+	bi.pszDisplayName = dest_directory;
+	bi.lpszTitle = "Select a location to save in";
+	bi.ulFlags = 0;
+	bi.lpfn = NULL;
+	bi.lParam = NULL;
+	bi.iImage = NULL;
+
+	LPCITEMIDLIST ret_val = SHBrowseForFolder(&bi);
+
+	if (ret_val == NULL)
+		return;
+
+	SHGetPathFromIDList(ret_val, dest_directory);
+#else
+	CFolderDialog dlgFolder(_T("Select a location to save in"), fs2_mission_path, NULL);
+	if (dlgFolder.DoModal() != IDOK)
+		return;
+
+	strcpy_s(dest_directory, dlgFolder.GetFolderPath());
+#endif
+
+	// VZTODO
+
+
+	MessageBox(NULL, dest_directory, "dest", MB_OK);
+	MessageBox(NULL, dlgFile.GetFileName(), "xwi", MB_OK);
 	recreate_dialogs();
 }
 
