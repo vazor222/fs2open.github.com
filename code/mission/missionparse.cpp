@@ -397,6 +397,9 @@ void mission_parse_mark_non_arrivals();
 // Goober5000 - FRED import
 void convertFSMtoFS2();
 
+// vazor222 - XWI import
+void convertXWItoFS2();
+
 
 MONITOR(NumShipArrivals)
 MONITOR(NumShipDepartures)
@@ -5932,9 +5935,9 @@ void parse_init(bool basic)
 		init_sexp();
 }
 
-// mai parse routine for parsing a mission.  The default parameter flags tells us which information
+// Main parse routine for parsing a mission.  The default parameter flags tells us which information
 // to get when parsing the mission.  0 means get everything (default).  Other flags just gets us basic
-// info such as game type, number of players etc.
+// info such as game type, number of players etc. or whether we are importing from a different format.
 int parse_main(const char *mission_name, int flags)
 {
 	int rval, i;
@@ -5955,7 +5958,7 @@ int parse_main(const char *mission_name, int flags)
 	
 	do {
 		// don't do this for imports
-		if (!(flags & MPF_IMPORT_FSM)) {
+		if (!(flags & MPF_IMPORT_FSM) && !(flags & MPF_IMPORT_XWI)) {
 			CFILE *ftemp = cfopen(mission_name, "rt", CFILE_NORMAL, CF_TYPE_MISSIONS);
 
 			// fail situation.
@@ -5980,6 +5983,10 @@ int parse_main(const char *mission_name, int flags)
 			if (flags & MPF_IMPORT_FSM) {
 				read_file_text(mission_name, CF_TYPE_ANY);
 				convertFSMtoFS2();
+			}
+			else if (flags & MPF_IMPORT_XWI) {
+				read_file_text(mission_name, CF_TYPE_ANY);
+				convertXWItoFS2();
 			}
 			else {
 				read_file_text(mission_name, CF_TYPE_MISSIONS);
@@ -7984,6 +7991,13 @@ void convertFSMtoFS2()
 {
 	// fix punctuation
 	conv_fix_punctuation();
+}
+
+// vazor222
+void convertXWItoFS2()
+{
+	// VZTODO
+	//conv_fix_punctuation_section(Mission_text, "#Command Briefing", "#Briefing", "$Stage Text:", "$end_multi_text");
 }
 
 void clear_texture_replacements() 

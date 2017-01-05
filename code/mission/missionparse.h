@@ -50,6 +50,7 @@ struct p_dock_instance;
 // mission parse flags used for parse_mission() to tell what kind of information to get from the mission file
 #define MPF_ONLY_MISSION_INFO	(1 << 0)
 #define MPF_IMPORT_FSM			(1 << 1)
+#define MPF_IMPORT_XWI			(1 << 2)
 
 // bitfield definitions for missions game types
 #define OLD_MAX_GAME_TYPES				4					// needed for compatibility

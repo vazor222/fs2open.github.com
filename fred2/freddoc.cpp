@@ -236,7 +236,7 @@ int CFREDDoc::load_mission(char *pathname, int flags) {
 	clear_mission();
 
 	if (parse_main(pathname, flags)) {
-		if (flags & MPF_IMPORT_FSM) {
+		if (flags & MPF_IMPORT_FSM || flags & MPF_IMPORT_XWI) {
 			sprintf(name, "Unable to import the file \"%s\".", pathname);
 			Fred_view_wnd->MessageBox(name);
 		} else {
@@ -633,11 +633,83 @@ void CFREDDoc::OnFileImportXWI() {
 	strcpy_s(dest_directory, dlgFolder.GetFolderPath());
 #endif
 
-	// VZTODO
+	// clean things up first
+	if (Briefing_dialog)
+		Briefing_dialog->icon_select(-1);
+
+	clear_mission();
+
+	// process all missions
+	POSITION pos(dlgFile.GetStartPosition());
+	while (pos) {
+		char *ch;
+		char filename[1024];
+		char xwi_path[MAX_PATH_LEN];
+		char dest_path[MAX_PATH_LEN];
+
+		CString xwi_path_mfc(dlgFile.GetNextPathName(pos));
+		CFred_mission_save save;
+
+		DWORD attrib;
+		FILE *fp;
 
 
-	MessageBox(NULL, dest_directory, "dest", MB_OK);
-	MessageBox(NULL, dlgFile.GetFileName(), "xwi", MB_OK);
+		// path name too long?
+		if (strlen(xwi_path_mfc) > MAX_PATH_LEN - 1)
+			continue;
+
+		// nothing here?
+		if (!strlen(xwi_path_mfc))
+			continue;
+
+		// get our mission
+		strcpy_s(xwi_path, xwi_path_mfc);
+
+		// load mission into memory
+		if (load_mission(xwi_path, MPF_IMPORT_XWI))
+			continue;
+
+		// get filename
+		ch = strrchr(xwi_path, DIR_SEPARATOR_CHAR) + 1;
+		if (ch != NULL)
+			strcpy_s(filename, ch);
+		else
+			strcpy_s(filename, xwi_path);
+
+		// truncate extension
+		ch = strrchr(filename, '.');
+		if (ch != NULL)
+			*ch = '\0';
+
+		// add new extension
+		strcat_s(filename, ".fs2");
+
+		strcpy_s(Mission_filename, filename);
+
+		// get new path
+		strcpy_s(dest_path, dest_directory);
+		strcat_s(dest_path, "\\");
+		strcat_s(dest_path, filename);
+
+		// check attributes
+		fp = fopen(dest_path, "r");
+		if (fp) {
+			fclose(fp);
+			attrib = GetFileAttributes(dest_path);
+			if (attrib & FILE_ATTRIBUTE_READONLY)
+				continue;
+		}
+
+		// try to save it
+		if (save.save_mission_file(dest_path))
+			continue;
+
+		// success
+	}
+
+	create_new_mission();
+
+	MessageBox(NULL, "XWI import complete.  Please check the destination folder to verify all missions were imported successfully.", "Status", MB_OK);
 	recreate_dialogs();
 }
 
