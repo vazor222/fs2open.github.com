@@ -372,6 +372,7 @@ extern fix game_get_overall_frametime();	// for texture animation
 // local prototypes
 void parse_player_info2(mission *pm);
 void post_process_mission();
+void post_process_xwi_mission();
 int allocate_subsys_status();
 void parse_common_object_data(p_object	*objp);
 void parse_asteroid_fields(mission *pm);
@@ -396,9 +397,6 @@ void mission_parse_mark_non_arrivals();
 
 // Goober5000 - FRED import
 void convertFSMtoFS2();
-
-// vazor222 - XWI import
-void convertXWItoFS2();
 
 
 MONITOR(NumShipArrivals)
@@ -765,6 +763,359 @@ void parse_mission_info(mission *pm, bool basic = false)
 	if (optional_string("$Sound Environment:")) {
 		char preset[65] = { '\0' };
 		stuff_string(preset, F_NAME, sizeof(preset)-1);
+
+		int preset_id = ds_eax_get_preset_id(preset);
+
+		if (preset_id >= 0) {
+			sound_env_get(&pm->sound_environment, preset_id);
+		}
+
+		// NOTE: values will be clamped properly when the effect is actually set
+
+		if (optional_string("+Volume:")) {
+			stuff_float(&pm->sound_environment.volume);
+		}
+
+		if (optional_string("+Damping:")) {
+			stuff_float(&pm->sound_environment.damping);
+		}
+
+		if (optional_string("+Decay Time:")) {
+			stuff_float(&pm->sound_environment.decay);
+		}
+	}
+}
+
+// vazor222
+void parse_xwi_mission_info(mission *pm, bool basic = false)
+{
+	char game_string[NAME_LENGTH];
+
+	// VZTODO: read header
+
+	required_string("$Version:");
+	stuff_float(&pm->version);
+	if (pm->version != MISSION_VERSION)
+		mprintf(("Older mission, should update it (%.2f<-->%.2f)\n", pm->version, MISSION_VERSION));
+
+	required_string("$Name:");
+	stuff_string(pm->name, F_NAME, NAME_LENGTH);
+
+	required_string("$Author:");
+	stuff_string(pm->author, F_NAME, NAME_LENGTH);
+
+	required_string("$Created:");
+	stuff_string(pm->created, F_DATE, DATE_TIME_LENGTH);
+
+	required_string("$Modified:");
+	stuff_string(pm->modified, F_DATE, DATE_TIME_LENGTH);
+
+	required_string("$Notes:");
+	stuff_string(pm->notes, F_NOTES, NOTES_LENGTH);
+
+	if (optional_string("$Mission Desc:"))
+		stuff_string(pm->mission_desc, F_MULTITEXT, MISSION_DESC_LENGTH);
+	else
+		strcpy_s(pm->mission_desc, NOX("No description\n"));
+
+	pm->game_type = MISSION_TYPE_SINGLE;				// default to single player only
+	if (optional_string("+Game Type:")) {
+		// HACK HACK HACK -- stuff_string was changed to *not* ignore carriage returns.  Since the
+		// old style missions may have carriage returns, deal with it here.
+		ignore_white_space();
+		stuff_string(game_string, F_NAME, NAME_LENGTH);
+		for (int i = 0; i < OLD_MAX_GAME_TYPES; i++) {
+			if (!stricmp(game_string, Old_game_types[i])) {
+
+				// this block of code is now old mission compatibility code.  We specify game
+				// type in a different manner than before.
+				if (i == OLD_GAME_TYPE_SINGLE_ONLY)
+					pm->game_type = MISSION_TYPE_SINGLE;
+				else if (i == OLD_GAME_TYPE_MULTI_ONLY)
+					pm->game_type = MISSION_TYPE_MULTI;
+				else if (i == OLD_GAME_TYPE_SINGLE_MULTI)
+					pm->game_type = (MISSION_TYPE_SINGLE | MISSION_TYPE_MULTI);
+				else if (i == OLD_GAME_TYPE_TRAINING)
+					pm->game_type = MISSION_TYPE_TRAINING;
+				else
+					Int3();
+
+				if (pm->game_type & MISSION_TYPE_MULTI)
+					pm->game_type |= MISSION_TYPE_MULTI_COOP;
+
+				break;
+			}
+		}
+	}
+
+	if (optional_string("+Game Type Flags:")) {
+		stuff_int(&pm->game_type);
+	}
+
+	pm->flags.reset();
+	if (optional_string("+Flags:")) {
+		stuff_flagset(&pm->flags);
+	}
+
+	// nebula mission stuff
+	Neb2_awacs = -1.0f;
+	if (optional_string("+NebAwacs:")) {
+		stuff_float(&Neb2_awacs);
+	}
+	if (optional_string("+Storm:")) {
+		stuff_string(Mission_parse_storm_name, F_NAME, NAME_LENGTH);
+
+		if (!basic)
+			nebl_set_storm(Mission_parse_storm_name);
+	}
+	Neb2_fog_near_mult = 1.0f;
+	Neb2_fog_far_mult = 1.0f;
+	if (optional_string("+Fog Near Mult:")) {
+		stuff_float(&Neb2_fog_near_mult);
+	}
+	if (optional_string("+Fog Far Mult:")) {
+		stuff_float(&Neb2_fog_far_mult);
+	}
+
+	// Goober5000 - ship contrail speed threshold
+	pm->contrail_threshold = CONTRAIL_THRESHOLD_DEFAULT;
+	if (optional_string("$Contrail Speed Threshold:")) {
+		stuff_int(&pm->contrail_threshold);
+	}
+
+	// get the number of players if in a multiplayer mission
+	pm->num_players = 1;
+	if (pm->game_type & MISSION_TYPE_MULTI) {
+		if (optional_string("+Num Players:")) {
+			stuff_int(&(pm->num_players));
+		}
+	}
+
+	// get the number of respawns
+	pm->num_respawns = 0;
+	if (pm->game_type & MISSION_TYPE_MULTI) {
+		if (optional_string("+Num Respawns:")) {
+			stuff_int((int*)&(pm->num_respawns));
+		}
+	}
+
+	The_mission.max_respawn_delay = -1;
+	if (pm->game_type & MISSION_TYPE_MULTI) {
+		if (optional_string("+Max Respawn Time:")) {
+			stuff_int(&The_mission.max_respawn_delay);
+		}
+	}
+
+	if (optional_string("+Red Alert:")) {
+		int temp;
+		stuff_int(&temp);
+
+		pm->flags.set(Mission::Mission_Flags::Red_alert, temp != 0);
+	}
+	red_alert_invalidate_timestamp();
+
+	if (optional_string("+Scramble:")) {
+		int temp;
+		stuff_int(&temp);
+
+		pm->flags.set(Mission::Mission_Flags::Scramble, temp != 0);
+	}
+
+	// if we are just requesting basic info then skip everything else.  the reason
+	// for this is to make sure that we don't modify things outside of the mission struct
+	// that might not get reset afterwards (like what can happen in the techroom) - taylor
+	//
+	// NOTE: this can be dangerous so be sure that any get_mission_info() call (defaults to basic info) will
+	//       only reference data parsed before this point!! (like current FRED2 and game code does)
+	if (basic)
+		return;
+
+
+	// set up support ships
+	pm->support_ships.arrival_location = ARRIVE_AT_LOCATION;
+	pm->support_ships.arrival_anchor = -1;
+	pm->support_ships.departure_location = DEPART_AT_LOCATION;
+	pm->support_ships.departure_anchor = -1;
+	pm->support_ships.max_hull_repair_val = 0.0f;
+	pm->support_ships.max_subsys_repair_val = 100.0f;	//ASSUMPTION: full repair capabilities
+	pm->support_ships.max_support_ships = -1;	// infinite
+	pm->support_ships.max_concurrent_ships = 1;
+	pm->support_ships.ship_class = -1;
+	pm->support_ships.tally = 0;
+	pm->support_ships.support_available_for_species = 0;
+
+	// for each species, store whether support is available
+	for (int species = 0; species < (int)Species_info.size(); species++)
+	{
+		for (auto it = Ship_info.cbegin(); it != Ship_info.cend(); ++it)
+		{
+			if ((it->flags[Ship::Info_Flags::Support]) && (it->species == species))
+			{
+				pm->support_ships.support_available_for_species |= (1 << species);
+				break;
+			}
+		}
+	}
+
+	if (optional_string("+Disallow Support:"))
+	{
+		int temp;
+		stuff_int(&temp);
+
+		pm->support_ships.max_support_ships = (temp > 0) ? 0 : -1;
+	}
+
+	if (optional_string("+Hull Repair Ceiling:"))
+	{
+		float temp;
+		stuff_float(&temp);
+
+		//ONLY set max_hull_repair_val if the value given is valid -C
+		if (temp <= 100.0f && temp >= 0.0f) {
+			pm->support_ships.max_hull_repair_val = temp;
+		}
+	}
+
+	if (optional_string("+Subsystem Repair Ceiling:"))
+	{
+		float temp;
+		stuff_float(&temp);
+
+		//ONLY set max_subsys_repair_val if the value given is valid -C
+		if (temp <= 100.0f && temp >= 0.0f) {
+			pm->support_ships.max_subsys_repair_val = temp;
+		}
+	}
+
+	if (optional_string("+All Teams Attack")) {
+		Mission_all_attack = 1;
+	}
+	else {
+		Mission_all_attack = 0;
+	}
+
+	//	Maybe delay the player's entry.
+	if (optional_string("+Player Entry Delay:")) {
+		float	temp;
+
+		stuff_float(&temp);
+		Assert(temp >= 0.0f);
+		Entry_delay_time = fl2f(temp);
+	}
+	else
+	{
+		Entry_delay_time = 0;
+	}
+
+	if (optional_string("+Viewer pos:")) {
+		stuff_vec3d(&Parse_viewer_pos);
+	}
+
+	if (optional_string("+Viewer orient:")) {
+		stuff_matrix(&Parse_viewer_orient);
+	}
+
+	// possible squadron reassignment
+	strcpy_s(pm->squad_name, "");
+	strcpy_s(pm->squad_filename, "");
+	if (optional_string("+SquadReassignName:")) {
+		stuff_string(pm->squad_name, F_NAME, NAME_LENGTH);
+		if (optional_string("+SquadReassignLogo:")) {
+			stuff_string(pm->squad_filename, F_NAME, MAX_FILENAME_LEN);
+		}
+	}
+	// always clear out squad reassignments if not single player
+	if (Game_mode & GM_MULTIPLAYER) {
+		strcpy_s(pm->squad_name, "");
+		strcpy_s(pm->squad_filename, "");
+	}
+	// reassign the player
+	else {
+		if (!Fred_running && (Player != NULL) && (pm->squad_name[0] != '\0') && (Game_mode & GM_CAMPAIGN_MODE)) {
+			mprintf(("Reassigning player to squadron %s\n", pm->squad_name));
+			player_set_squad(Player, pm->squad_name);
+			player_set_squad_bitmap(Player, pm->squad_filename, false);
+		}
+	}
+
+
+	// wing stuff by Goober5000 ------------------------------------------
+	// the wing name arrays are initialized in ship_level_init
+	if (optional_string("$Starting wing names:"))
+	{
+		stuff_string_list(Starting_wing_names, MAX_STARTING_WINGS);
+	}
+
+	if (optional_string("$Squadron wing names:"))
+	{
+		stuff_string_list(Squadron_wing_names, MAX_SQUADRON_WINGS);
+	}
+
+	if (optional_string("$Team-versus-team wing names:"))
+	{
+		stuff_string_list(TVT_wing_names, MAX_TVT_WINGS);
+	}
+	// end of wing stuff -------------------------------------------------
+
+
+	// set up the Num_teams variable accoriding to the game_type variable'
+	Num_teams = 1;				// assume 1
+
+								// multiplayer team v. team games have two teams.  If we have three teams, we need to use
+								// a new mission mode!
+	if ((pm->game_type & MISSION_TYPE_MULTI) && (pm->game_type & MISSION_TYPE_MULTI_TEAMS)) {
+		Num_teams = 2;
+	}
+
+	// Goober5000 - made this into a function since we use much the same technique for the briefing background
+	parse_custom_bitmap("$Load Screen 640:", "$Load Screen 1024:", pm->loading_screen[GR_640], pm->loading_screen[GR_1024]);
+
+	strcpy_s(pm->skybox_model, "");
+	if (optional_string("$Skybox Model:"))
+	{
+		stuff_string(pm->skybox_model, F_NAME, MAX_FILENAME_LEN);
+	}
+
+	vm_set_identity(&pm->skybox_orientation);
+	if (optional_string("+Skybox Orientation:"))
+	{
+		stuff_matrix(&pm->skybox_orientation);
+	}
+
+	if (optional_string("+Skybox Flags:")) {
+		pm->skybox_flags = 0;
+		stuff_int(&pm->skybox_flags);
+	}
+	else {
+		pm->skybox_flags = DEFAULT_NMODEL_FLAGS;
+	}
+
+	// Goober5000 - AI on a per-mission basis
+	The_mission.ai_profile = &Ai_profiles[Default_ai_profile];
+	if (optional_string("$AI Profile:"))
+	{
+		int index;
+		char temp[NAME_LENGTH];
+
+		stuff_string(temp, F_NAME, NAME_LENGTH);
+		index = ai_profile_lookup(temp);
+
+		if (index >= 0)
+			The_mission.ai_profile = &Ai_profiles[index];
+		else
+			WarningEx(LOCATION, "Mission: %s\nUnknown AI profile %s!", pm->name, temp);
+	}
+
+	Assert(The_mission.ai_profile != NULL);
+
+	// Kazan - player use AI at start?
+	if (pm->flags[Mission::Mission_Flags::Player_start_ai])
+		Player_use_ai = 1;
+
+	pm->sound_environment.id = -1;
+	if (optional_string("$Sound Environment:")) {
+		char preset[65] = { '\0' };
+		stuff_string(preset, F_NAME, sizeof(preset) - 1);
 
 		int preset_id = ds_eax_get_preset_id(preset);
 
@@ -5639,6 +5990,48 @@ int parse_mission(mission *pm, int flags)
 	return 0;
 }
 
+// vazor222
+int parse_xwi_mission(mission *pm, int flags)
+{
+	int saved_warning_count = Global_warning_count;
+	int saved_error_count = Global_error_count;
+
+	int i;
+	Warned_about_team_out_of_range = false;
+
+	waypoint_parse_init();
+
+	Player_starts = Num_cargo = Num_goals = Num_wings = 0;
+	Player_start_shipnum = -1;
+	*Player_start_shipname = 0;		// make the string 0 length for checking later
+	clear_texture_replacements();
+
+	// initialize the initially_docked array.
+	for (i = 0; i < MAX_SHIPS; i++) {
+		Initially_docked[i].docker[0] = '\0';
+		Initially_docked[i].dockee[0] = '\0';
+		Initially_docked[i].docker_point[0] = '\0';
+		Initially_docked[i].dockee_point[0] = '\0';
+	}
+	Total_initially_docked = 0;
+
+	list_init(&Ship_arrival_list);	// init list for arrival ships
+
+	parse_init();
+
+	Subsys_index = 0;
+	Subsys_status_size = 0;
+
+	if (Subsys_status != NULL) {
+		vm_free(Subsys_status);
+		Subsys_status = NULL;
+	}
+
+	parse_xwi_mission_info(pm);
+
+	// VZTODO
+}
+
 void post_process_mission()
 {
 	int			i;
@@ -5984,16 +6377,17 @@ int parse_main(const char *mission_name, int flags)
 				read_file_text(mission_name, CF_TYPE_ANY);
 				convertFSMtoFS2();
 			}
-			else if (flags & MPF_IMPORT_XWI) {
-				read_file_text(mission_name, CF_TYPE_ANY);
-				convertXWItoFS2();
-			}
 			else {
 				read_file_text(mission_name, CF_TYPE_MISSIONS);
 			}
 
 			The_mission.Reset();
-			rval = parse_mission(&The_mission, flags);
+			if (!(flags & MPF_IMPORT_XWI)) {
+				rval = parse_mission(&The_mission, flags);
+			}
+			else {
+				rval = parse_xwi_mission(&The_mission, flags);
+			}
 			display_parse_diagnostics();
 		}
 		catch (const parse::ParseException& e)
@@ -6008,6 +6402,11 @@ int parse_main(const char *mission_name, int flags)
 		strcpy_s(Mission_filename, mission_name);
 
 	return rval;
+}
+
+int parse_xwi_main(const char *mission_name, int flags)
+{
+
 }
 
 // Note, this is currently only called from game_shutdown()
@@ -7991,13 +8390,6 @@ void convertFSMtoFS2()
 {
 	// fix punctuation
 	conv_fix_punctuation();
-}
-
-// vazor222
-void convertXWItoFS2()
-{
-	// VZTODO
-	//conv_fix_punctuation_section(Mission_text, "#Command Briefing", "#Briefing", "$Stage Text:", "$end_multi_text");
 }
 
 void clear_texture_replacements() 
