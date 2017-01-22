@@ -54,6 +54,11 @@ static int Parsing_paused = 0;
 void allocate_mission_text(size_t size);
 static size_t Mission_text_size = 0;
 
+// vazor222 - binary mission parse stuff - VZTODO does this go here?
+byte *Mission_binary = NULL;
+byte *Mission_binary_raw = NULL;
+byte *Mbp = NULL, *Mbp_save = NULL;
+
 
 //	Return true if this character is white space, else false.
 int is_white_space(char ch)
@@ -2307,6 +2312,35 @@ void debug_show_mission_text()
 
 	while ((ch = *mp++) != EOF_CHAR)
 		printf("%c", ch);
+}
+
+// vazor222 - binary parse stuff
+void read_file_binary(const char *filename, int mode, char *processed_text, char *raw_text)
+{
+	// VZTODO
+
+	// copy the filename
+	if (!filename)
+		throw parse::ParseException("Invalid filename");
+
+	strcpy_s(Current_filename_sub, filename);
+
+	// if we are paused then processed_binary and raw_binary must not be NULL!!
+	if (Parsing_paused && ((processed_text == NULL) || (raw_text == NULL))) {
+		Error(LOCATION, "ERROR: Neither processed_binary nor raw_binary may be NULL when parsing is paused!!\n");
+	}
+
+	// read the raw binary
+	read_raw_file_binary(filename, mode, raw_text);
+
+	if (processed_text == NULL)
+		processed_text = Mission_text;
+
+	if (raw_text == NULL)
+		raw_text = Mission_text_raw;
+
+	// process it (strip comments)
+	process_raw_file_text(processed_text, raw_text);
 }
 
 static bool atof2(float *out)

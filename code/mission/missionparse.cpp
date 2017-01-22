@@ -6383,6 +6383,7 @@ int parse_main(const char *mission_name, int flags)
 
 			The_mission.Reset();
 			if (!(flags & MPF_IMPORT_XWI)) {
+				read_file_binary(mission_name, CF_TYPE_ANY);
 				rval = parse_mission(&The_mission, flags);
 			}
 			else {
