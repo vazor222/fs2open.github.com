@@ -2331,7 +2331,7 @@ void read_file_binary(const char *filename, int mode, char *processed_text, char
 	}
 
 	// read the raw binary
-	read_raw_file_binary(filename, mode, raw_text);
+	//read_raw_file_binary(filename, mode, raw_text);
 
 	if (processed_text == NULL)
 		processed_text = Mission_text;

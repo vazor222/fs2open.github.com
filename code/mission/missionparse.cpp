@@ -5993,8 +5993,9 @@ int parse_mission(mission *pm, int flags)
 // vazor222
 int parse_xwi_mission(mission *pm, int flags)
 {
-	int saved_warning_count = Global_warning_count;
-	int saved_error_count = Global_error_count;
+	// VZTODO
+	//int saved_warning_count = Global_warning_count;
+	//int saved_error_count = Global_error_count;
 
 	int i;
 	Warned_about_team_out_of_range = false;
@@ -6030,6 +6031,9 @@ int parse_xwi_mission(mission *pm, int flags)
 	parse_xwi_mission_info(pm);
 
 	// VZTODO
+
+	// success
+	return 0;
 }
 
 void post_process_mission()
@@ -6407,7 +6411,7 @@ int parse_main(const char *mission_name, int flags)
 
 int parse_xwi_main(const char *mission_name, int flags)
 {
-
+	return 0;
 }
 
 // Note, this is currently only called from game_shutdown()
