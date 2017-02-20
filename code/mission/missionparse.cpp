@@ -5991,7 +5991,7 @@ int parse_mission(mission *pm, int flags)
 }
 
 // vazor222
-int parse_xwi_mission(mission *pm, int flags)
+int parse_xwi_mission(std::vector<char> raw_binary, mission *pm, int flags)
 {
 	// VZTODO
 	//int saved_warning_count = Global_warning_count;
@@ -6376,22 +6376,23 @@ int parse_main(const char *mission_name, int flags)
 
 		try
 		{
-			// import?
-			if (flags & MPF_IMPORT_FSM) {
-				read_file_text(mission_name, CF_TYPE_ANY);
-				convertFSMtoFS2();
-			}
-			else {
-				read_file_text(mission_name, CF_TYPE_MISSIONS);
-			}
-
-			The_mission.Reset();
 			if (!(flags & MPF_IMPORT_XWI)) {
-				read_file_binary(mission_name, CF_TYPE_ANY);
+				// import?
+				if (flags & MPF_IMPORT_FSM) {
+					read_file_text(mission_name, CF_TYPE_ANY);
+					convertFSMtoFS2();
+				}
+				else {
+					read_file_text(mission_name, CF_TYPE_MISSIONS);
+				}
+
+				The_mission.Reset();
 				rval = parse_mission(&The_mission, flags);
 			}
 			else {
-				rval = parse_xwi_mission(&The_mission, flags);
+				// import xwi from binary file, use specific parse function
+				std::vector<char> raw_binary = read_file_binary(mission_name);
+				rval = parse_xwi_mission(raw_binary, &The_mission, flags);
 			}
 			display_parse_diagnostics();
 		}
