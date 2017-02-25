@@ -21,6 +21,7 @@
 #include "parse/sexp.h"
 #include "sound/sound.h"
 #include "mission/mission_flags.h"
+#include "mission/xwinglib.h"
 
 //WMC - This should be here
 #define FS_MISSION_FILE_EXT				NOX(".fs2")

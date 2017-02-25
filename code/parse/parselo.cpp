@@ -2309,25 +2309,6 @@ void debug_show_mission_text()
 		printf("%c", ch);
 }
 
-// vazor222 - binary parse stuff
-std::vector<char> read_file_binary(const char *filename)
-{
-	// copy the filename for error display
-	if (!filename)
-		throw parse::ParseException("Invalid filename");
-
-	strcpy_s(Current_filename_sub, filename);
-
-	// read the raw binary
-	std::ifstream input(filename, std::ios::binary);
-	// copies all data into buffer
-	std::vector<char> raw_binary((
-		std::istreambuf_iterator<char>(input)),
-		(std::istreambuf_iterator<char>()));
-
-	return raw_binary;
-}
-
 static bool atof2(float *out)
 {
 	ignore_white_space();

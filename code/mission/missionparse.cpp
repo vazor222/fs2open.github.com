@@ -5991,8 +5991,12 @@ int parse_mission(mission *pm, int flags)
 }
 
 // vazor222
-int parse_xwi_mission(std::vector<char> raw_binary, mission *pm, int flags)
+int parse_xwi_mission(const char *filename, mission *pm, int flags)
 {
+	XWingMission *m = XWingMission::load(filename);
+
+	log_printf(LOGFILE_EVENT_LOG, "XWI loaded - filename %s, cmsg1 %s", filename, m->completionMsg1);
+
 	// VZTODO
 	//int saved_warning_count = Global_warning_count;
 	//int saved_error_count = Global_error_count;
@@ -6391,8 +6395,7 @@ int parse_main(const char *mission_name, int flags)
 			}
 			else {
 				// import xwi from binary file, use specific parse function
-				std::vector<char> raw_binary = read_file_binary(mission_name);
-				rval = parse_xwi_mission(raw_binary, &The_mission, flags);
+				rval = parse_xwi_mission(mission_name, &The_mission, flags);
 			}
 			display_parse_diagnostics();
 		}

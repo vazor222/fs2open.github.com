@@ -590,6 +590,8 @@ set (file_root_mission
 	mission/missiontraining.cpp
 	mission/missiontraining.h
 	mission/mission_flags.h
+	mission/xwinglib.cpp
+	mission/xwinglib.h
 )
 
 # MissionUI files

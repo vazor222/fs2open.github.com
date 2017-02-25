@@ -256,7 +256,6 @@ extern void read_file_text_from_default(const default_file& file, char *processe
 extern void read_raw_file_text(const char *filename, int mode = CF_TYPE_ANY, char *raw_text = NULL);
 extern void process_raw_file_text(char *processed_text = NULL, char *raw_text = NULL);
 extern void debug_show_mission_text();
-extern std::vector<char> read_file_binary(const char *filename);
 extern void convert_sexp_to_string(SCP_string &dest, int cur_node, int mode);
 extern size_t maybe_convert_foreign_characters(const char *in, char *out, bool add_null = true);
 extern void maybe_convert_foreign_characters(SCP_string &text);
