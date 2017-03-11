@@ -562,6 +562,16 @@ void CFREDDoc::OnFileImportFSM() {
 	recreate_dialogs();
 }
 
+int FAR PASCAL XWIImportDestDirBrowseNotify(HWND hWnd, UINT iMessage, LPARAM lParam, LPARAM lpData)
+{
+	if (iMessage == BFFM_INITIALIZED)
+	{
+		SendMessage(hWnd, BFFM_SETSELECTION, 1, (LPARAM)Fred_exe_dir);    // Set initial folder
+		return 1;
+	}
+	return 0;
+}
+
 void CFREDDoc::OnFileImportXWI() {
 	char xwi_mission_path[MAX_PATH_LEN];
 	char fs2_mission_path[MAX_PATH_LEN];
@@ -606,7 +616,7 @@ void CFREDDoc::OnFileImportXWI() {
 #if ( _MFC_VER >= 0x0700 )
 	//ITEMIDLIST fs2_mission_pidl = {0};
 
-	//SHParseDisplayName(A2CW(fs2_mission_path), NULL, fs2_mission_pidl, 0, 0);
+	//SHParseDisplayName(A2CW(xwi_mission_path), NULL, fs2_mission_pidl, 0, 0);
 
 	BROWSEINFO bi;
 	bi.hwndOwner = theApp.GetMainWnd()->GetSafeHwnd();
@@ -615,7 +625,7 @@ void CFREDDoc::OnFileImportXWI() {
 	bi.pszDisplayName = dest_directory;
 	bi.lpszTitle = "Select a location to save in";
 	bi.ulFlags = 0;
-	bi.lpfn = NULL;
+	bi.lpfn = XWIImportDestDirBrowseNotify;
 	bi.lParam = NULL;
 	bi.iImage = NULL;
 
@@ -709,7 +719,7 @@ void CFREDDoc::OnFileImportXWI() {
 
 	create_new_mission();
 
-	MessageBox(NULL, "XWI import complete.  Please check the destination folder to verify all missions were imported successfully.", "Status", MB_OK);
+	MessageBox(NULL, "XWI import command complete.  Please check the destination folder to verify any missions that were imported successfully.", "Status", MB_OK);
 	recreate_dialogs();
 }
 

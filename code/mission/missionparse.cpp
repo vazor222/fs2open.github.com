@@ -383,6 +383,7 @@ void mission_parse_set_arrival_locations();
 void mission_set_wing_arrival_location( wing *wingp, int num_to_set );
 int parse_lookup_alt_name(char *name);
 void parse_init(bool basic = false);
+void parse_mission_setup();
 void parse_object_set_handled_flag_helper(p_object *pobjp, p_dock_function_info *infop);
 void parse_object_clear_all_handled_flags();
 int parse_object_on_arrival_list(p_object *pobjp);
@@ -787,19 +788,22 @@ void parse_mission_info(mission *pm, bool basic = false)
 }
 
 // vazor222
-void parse_xwi_mission_info(mission *pm, bool basic = false)
+void parse_xwi_mission_info(mission *pm, XWingMission *xwim, const char *filename, bool basic = false)
 {
 	char game_string[NAME_LENGTH];
 
-	// VZTODO: read header
+	// XWI file version is checked on load, just use latest here
+	pm->version = MISSION_VERSION;
 
-	required_string("$Version:");
-	stuff_float(&pm->version);
-	if (pm->version != MISSION_VERSION)
-		mprintf(("Older mission, should update it (%.2f<-->%.2f)\n", pm->version, MISSION_VERSION));
-
-	required_string("$Name:");
-	stuff_string(pm->name, F_NAME, NAME_LENGTH);
+	// XWI missions don't have names, so just use filename, without extension
+	const char *namestart = filename;
+	const char *p = strrchr(filename, DIR_SEPARATOR_CHAR);
+	if( p != 0 )
+		namestart = p+1;
+	size_t namelen = strlen(namestart);
+	if( stricmp(namestart + namelen - 4, ".xwi") == 0 )
+		namelen -= 4;
+	strncpy_s(pm->name, namestart, namelen);
 
 	required_string("$Author:");
 	stuff_string(pm->author, F_NAME, NAME_LENGTH);
@@ -5861,12 +5865,10 @@ void parse_variables()
 	}
 }
 
-int parse_mission(mission *pm, int flags)
+void parse_mission_setup()
 {
-	int saved_warning_count = Global_warning_count;
-	int saved_error_count = Global_error_count;
-
 	int i;
+
 	Warned_about_team_out_of_range = false;
 
 	waypoint_parse_init();
@@ -5896,6 +5898,14 @@ int parse_mission(mission *pm, int flags)
 		vm_free( Subsys_status );
 		Subsys_status = NULL;
 	}
+}
+
+int parse_mission(mission *pm, int flags)
+{
+	int saved_warning_count = Global_warning_count;
+	int saved_error_count = Global_error_count;
+
+	parse_mission_setup();
 
 	parse_mission_info(pm); 
 
@@ -5995,44 +6005,20 @@ int parse_xwi_mission(const char *filename, mission *pm, int flags)
 {
 	XWingMission *m = XWingMission::load(filename);
 
+	if (m == NULL)
+	{
+		mprintf(("The chosen file (%s) could not be parsed as an XWI mission. Check XWI version (expected 2) or for corrupt file.\n", filename));
+		return -2;
+	}
+
 	log_printf(LOGFILE_EVENT_LOG, "XWI loaded - filename %s, cmsg1 %s", filename, m->completionMsg1);
 
-	// VZTODO
-	//int saved_warning_count = Global_warning_count;
-	//int saved_error_count = Global_error_count;
+	int saved_warning_count = Global_warning_count;
+	int saved_error_count = Global_error_count;
 
-	int i;
-	Warned_about_team_out_of_range = false;
+	parse_mission_setup();
 
-	waypoint_parse_init();
-
-	Player_starts = Num_cargo = Num_goals = Num_wings = 0;
-	Player_start_shipnum = -1;
-	*Player_start_shipname = 0;		// make the string 0 length for checking later
-	clear_texture_replacements();
-
-	// initialize the initially_docked array.
-	for (i = 0; i < MAX_SHIPS; i++) {
-		Initially_docked[i].docker[0] = '\0';
-		Initially_docked[i].dockee[0] = '\0';
-		Initially_docked[i].docker_point[0] = '\0';
-		Initially_docked[i].dockee_point[0] = '\0';
-	}
-	Total_initially_docked = 0;
-
-	list_init(&Ship_arrival_list);	// init list for arrival ships
-
-	parse_init();
-
-	Subsys_index = 0;
-	Subsys_status_size = 0;
-
-	if (Subsys_status != NULL) {
-		vm_free(Subsys_status);
-		Subsys_status = NULL;
-	}
-
-	parse_xwi_mission_info(pm);
+	parse_xwi_mission_info(pm, m, filename);
 
 	// VZTODO
 
@@ -6411,11 +6397,6 @@ int parse_main(const char *mission_name, int flags)
 		strcpy_s(Mission_filename, mission_name);
 
 	return rval;
-}
-
-int parse_xwi_main(const char *mission_name, int flags)
-{
-	return 0;
 }
 
 // Note, this is currently only called from game_shutdown()
