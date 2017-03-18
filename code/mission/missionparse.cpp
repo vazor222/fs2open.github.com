@@ -797,22 +797,24 @@ void parse_xwi_mission_info(mission *pm, XWingMission *xwim, const char *filenam
 
 	// XWI missions don't have names, so just use filename, without extension
 	const char *namestart = filename;
-	const char *p = strrchr(filename, DIR_SEPARATOR_CHAR);
-	if( p != 0 )
-		namestart = p+1;
+	const char *path = strrchr(filename, DIR_SEPARATOR_CHAR);
+	if( path != 0 )
+		namestart = path+1;
 	size_t namelen = strlen(namestart);
 	if( stricmp(namestart + namelen - 4, ".xwi") == 0 )
 		namelen -= 4;
 	strncpy_s(pm->name, namestart, namelen);
 
-	required_string("$Author:");
-	stuff_string(pm->author, F_NAME, NAME_LENGTH);
+	strcpy_s(pm->author, "XWIConverter");
 
-	required_string("$Created:");
-	stuff_string(pm->created, F_DATE, DATE_TIME_LENGTH);
+	// XWI missions don't track these timestamps, just use now 
+	char time_string[DATE_TIME_LENGTH];
+	time_t rawtime;
+	time(&rawtime);
+	strftime(time_string, DATE_TIME_LENGTH, "%D %T", localtime(&rawtime));
+	strcpy_s(pm->created, time_string);
 
-	required_string("$Modified:");
-	stuff_string(pm->modified, F_DATE, DATE_TIME_LENGTH);
+	strcpy_s(pm->modified, time_string);
 
 	required_string("$Notes:");
 	stuff_string(pm->notes, F_NOTES, NOTES_LENGTH);
