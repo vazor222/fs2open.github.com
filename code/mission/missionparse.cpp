@@ -803,6 +803,8 @@ void parse_xwi_mission_info(mission *pm, XWingMission *xwim, const char *filenam
 	size_t namelen = strlen(namestart);
 	if( stricmp(namestart + namelen - 4, ".xwi") == 0 )
 		namelen -= 4;
+	if( namelen > NAME_LENGTH )
+		namelen = NAME_LENGTH;
 	strncpy_s(pm->name, namestart, namelen);
 
 	strcpy_s(pm->author, "XWIConverter");
@@ -816,116 +818,31 @@ void parse_xwi_mission_info(mission *pm, XWingMission *xwim, const char *filenam
 
 	strcpy_s(pm->modified, time_string);
 
-	required_string("$Notes:");
-	stuff_string(pm->notes, F_NOTES, NOTES_LENGTH);
+	strcpy_s(pm->notes, "This is a FRED2_OPEN created mission, impurted from XWI.");
 
-	if (optional_string("$Mission Desc:"))
-		stuff_string(pm->mission_desc, F_MULTITEXT, MISSION_DESC_LENGTH);
-	else
-		strcpy_s(pm->mission_desc, NOX("No description\n"));
+	strcpy_s(pm->mission_desc, NOX("No description\n"));
 
-	pm->game_type = MISSION_TYPE_SINGLE;				// default to single player only
-	if (optional_string("+Game Type:")) {
-		// HACK HACK HACK -- stuff_string was changed to *not* ignore carriage returns.  Since the
-		// old style missions may have carriage returns, deal with it here.
-		ignore_white_space();
-		stuff_string(game_string, F_NAME, NAME_LENGTH);
-		for (int i = 0; i < OLD_MAX_GAME_TYPES; i++) {
-			if (!stricmp(game_string, Old_game_types[i])) {
-
-				// this block of code is now old mission compatibility code.  We specify game
-				// type in a different manner than before.
-				if (i == OLD_GAME_TYPE_SINGLE_ONLY)
-					pm->game_type = MISSION_TYPE_SINGLE;
-				else if (i == OLD_GAME_TYPE_MULTI_ONLY)
-					pm->game_type = MISSION_TYPE_MULTI;
-				else if (i == OLD_GAME_TYPE_SINGLE_MULTI)
-					pm->game_type = (MISSION_TYPE_SINGLE | MISSION_TYPE_MULTI);
-				else if (i == OLD_GAME_TYPE_TRAINING)
-					pm->game_type = MISSION_TYPE_TRAINING;
-				else
-					Int3();
-
-				if (pm->game_type & MISSION_TYPE_MULTI)
-					pm->game_type |= MISSION_TYPE_MULTI_COOP;
-
-				break;
-			}
-		}
-	}
-
-	if (optional_string("+Game Type Flags:")) {
-		stuff_int(&pm->game_type);
-	}
+	pm->game_type = MISSION_TYPE_SINGLE;  // assume all XWI missions are single player
 
 	pm->flags.reset();
-	if (optional_string("+Flags:")) {
-		stuff_flagset(&pm->flags);
-	}
+	// TODO set flags if any
 
 	// nebula mission stuff
 	Neb2_awacs = -1.0f;
-	if (optional_string("+NebAwacs:")) {
-		stuff_float(&Neb2_awacs);
-	}
-	if (optional_string("+Storm:")) {
-		stuff_string(Mission_parse_storm_name, F_NAME, NAME_LENGTH);
-
-		if (!basic)
-			nebl_set_storm(Mission_parse_storm_name);
-	}
 	Neb2_fog_near_mult = 1.0f;
 	Neb2_fog_far_mult = 1.0f;
-	if (optional_string("+Fog Near Mult:")) {
-		stuff_float(&Neb2_fog_near_mult);
-	}
-	if (optional_string("+Fog Far Mult:")) {
-		stuff_float(&Neb2_fog_far_mult);
-	}
-
+	
 	// Goober5000 - ship contrail speed threshold
 	pm->contrail_threshold = CONTRAIL_THRESHOLD_DEFAULT;
-	if (optional_string("$Contrail Speed Threshold:")) {
-		stuff_int(&pm->contrail_threshold);
-	}
 
-	// get the number of players if in a multiplayer mission
 	pm->num_players = 1;
-	if (pm->game_type & MISSION_TYPE_MULTI) {
-		if (optional_string("+Num Players:")) {
-			stuff_int(&(pm->num_players));
-		}
-	}
 
-	// get the number of respawns
 	pm->num_respawns = 0;
-	if (pm->game_type & MISSION_TYPE_MULTI) {
-		if (optional_string("+Num Respawns:")) {
-			stuff_int((int*)&(pm->num_respawns));
-		}
-	}
 
 	The_mission.max_respawn_delay = -1;
-	if (pm->game_type & MISSION_TYPE_MULTI) {
-		if (optional_string("+Max Respawn Time:")) {
-			stuff_int(&The_mission.max_respawn_delay);
-		}
-	}
 
-	if (optional_string("+Red Alert:")) {
-		int temp;
-		stuff_int(&temp);
-
-		pm->flags.set(Mission::Mission_Flags::Red_alert, temp != 0);
-	}
 	red_alert_invalidate_timestamp();
 
-	if (optional_string("+Scramble:")) {
-		int temp;
-		stuff_int(&temp);
-
-		pm->flags.set(Mission::Mission_Flags::Scramble, temp != 0);
-	}
 
 	// if we are just requesting basic info then skip everything else.  the reason
 	// for this is to make sure that we don't modify things outside of the mission struct
