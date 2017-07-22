@@ -827,10 +827,7 @@ void parse_xwi_mission_info(mission *pm, XWingMission *xwim, const char *filenam
 	pm->flags.reset();
 	// TODO set flags if any
 
-	// nebula mission stuff
-	Neb2_awacs = -1.0f;
-	Neb2_fog_near_mult = 1.0f;
-	Neb2_fog_far_mult = 1.0f;
+	// TODO any nebula mission stuff
 	
 	// Goober5000 - ship contrail speed threshold
 	pm->contrail_threshold = CONTRAIL_THRESHOLD_DEFAULT;
@@ -853,86 +850,29 @@ void parse_xwi_mission_info(mission *pm, XWingMission *xwim, const char *filenam
 	if (basic)
 		return;
 
+	// TODO any support ships in any XWI missions?  for now turn them all off
+	pm->support_ships.max_support_ships = 0;
 
-	// set up support ships
-	pm->support_ships.arrival_location = ARRIVE_AT_LOCATION;
-	pm->support_ships.arrival_anchor = -1;
-	pm->support_ships.departure_location = DEPART_AT_LOCATION;
-	pm->support_ships.departure_anchor = -1;
-	pm->support_ships.max_hull_repair_val = 0.0f;
-	pm->support_ships.max_subsys_repair_val = 100.0f;	//ASSUMPTION: full repair capabilities
-	pm->support_ships.max_support_ships = -1;	// infinite
-	pm->support_ships.max_concurrent_ships = 1;
-	pm->support_ships.ship_class = -1;
-	pm->support_ships.tally = 0;
-	pm->support_ships.support_available_for_species = 0;
-
-	// for each species, store whether support is available
-	for (int species = 0; species < (int)Species_info.size(); species++)
-	{
-		for (auto it = Ship_info.cbegin(); it != Ship_info.cend(); ++it)
-		{
-			if ((it->flags[Ship::Info_Flags::Support]) && (it->species == species))
-			{
-				pm->support_ships.support_available_for_species |= (1 << species);
-				break;
-			}
-		}
-	}
-
-	if (optional_string("+Disallow Support:"))
-	{
-		int temp;
-		stuff_int(&temp);
-
-		pm->support_ships.max_support_ships = (temp > 0) ? 0 : -1;
-	}
-
-	if (optional_string("+Hull Repair Ceiling:"))
-	{
-		float temp;
-		stuff_float(&temp);
-
-		//ONLY set max_hull_repair_val if the value given is valid -C
-		if (temp <= 100.0f && temp >= 0.0f) {
-			pm->support_ships.max_hull_repair_val = temp;
-		}
-	}
-
-	if (optional_string("+Subsystem Repair Ceiling:"))
-	{
-		float temp;
-		stuff_float(&temp);
-
-		//ONLY set max_subsys_repair_val if the value given is valid -C
-		if (temp <= 100.0f && temp >= 0.0f) {
-			pm->support_ships.max_subsys_repair_val = temp;
-		}
-	}
-
-	if (optional_string("+All Teams Attack")) {
-		Mission_all_attack = 1;
-	}
-	else {
-		Mission_all_attack = 0;
-	}
+	Mission_all_attack = 0;
 
 	//	Maybe delay the player's entry.
-	if (optional_string("+Player Entry Delay:")) {
-		float	temp;
-
-		stuff_float(&temp);
-		Assert(temp >= 0.0f);
-		Entry_delay_time = fl2f(temp);
+	// TODO find player's Flight Group and use arrival delay value from that?
+	// TODO convert from 0 = 0?, 1 = one minute, 2D = 2 minutes, 30 seconds.. hmm, strange encoding
+	if (xwim->flightgroups[0]->arrivalDelay > 0) {
+		Entry_delay_time = xwim->flightgroups[0]->arrivalDelay;
 	}
 	else
 	{
 		Entry_delay_time = 0;
 	}
 
-	if (optional_string("+Viewer pos:")) {
-		stuff_vec3d(&Parse_viewer_pos);
-	}
+	// TODO check if player is ever not flight group 0
+	// TODO see if start2, etc. are useful?
+	Parse_viewer_pos.xyz.x = xwim->flightgroups[0]->start1_x;
+	Parse_viewer_pos.xyz.y = xwim->flightgroups[0]->start1_y;
+	Parse_viewer_pos.xyz.z = xwim->flightgroups[0]->start1_z;
+	
+	// VZTODO next
 
 	if (optional_string("+Viewer orient:")) {
 		stuff_matrix(&Parse_viewer_orient);
