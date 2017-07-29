@@ -866,73 +866,35 @@ void parse_xwi_mission_info(mission *pm, XWingMission *xwim, const char *filenam
 		Entry_delay_time = 0;
 	}
 
-	// TODO check if player is ever not flight group 0
+	// player is always flight group 0
+	// TODO does this need to be offset so the camera isn't right on top of player ship?
 	// TODO see if start2, etc. are useful?
 	Parse_viewer_pos.xyz.x = xwim->flightgroups[0]->start1_x;
 	Parse_viewer_pos.xyz.y = xwim->flightgroups[0]->start1_y;
 	Parse_viewer_pos.xyz.z = xwim->flightgroups[0]->start1_z;
 	
-	// VZTODO next
-
-	if (optional_string("+Viewer orient:")) {
-		stuff_matrix(&Parse_viewer_orient);
-	}
+	// leave this default for now
+	// TODO maybe in the future lookat second start coord, or at waypoint?
+	//Parse_viewer_orient = IDENTITY_MATRIX; or vm_set_identity(&Parse_viewer_orient);?
 
 	// possible squadron reassignment
-	strcpy_s(pm->squad_name, "");
+	strcpy_s(pm->squad_name, xwim->flightgroups[1]->designation.c_str());
 	strcpy_s(pm->squad_filename, "");
-	if (optional_string("+SquadReassignName:")) {
-		stuff_string(pm->squad_name, F_NAME, NAME_LENGTH);
-		if (optional_string("+SquadReassignLogo:")) {
-			stuff_string(pm->squad_filename, F_NAME, MAX_FILENAME_LEN);
-		}
-	}
-	// always clear out squad reassignments if not single player
-	if (Game_mode & GM_MULTIPLAYER) {
-		strcpy_s(pm->squad_name, "");
-		strcpy_s(pm->squad_filename, "");
-	}
-	// reassign the player
-	else {
-		if (!Fred_running && (Player != NULL) && (pm->squad_name[0] != '\0') && (Game_mode & GM_CAMPAIGN_MODE)) {
-			mprintf(("Reassigning player to squadron %s\n", pm->squad_name));
-			player_set_squad(Player, pm->squad_name);
-			player_set_squad_bitmap(Player, pm->squad_filename, false);
-		}
+	// reassign the player (XWI missions are always single player)
+	if (!Fred_running && (Player != NULL) && (pm->squad_name[0] != '\0') && (Game_mode & GM_CAMPAIGN_MODE)) {
+		mprintf(("Reassigning player to squadron %s\n", pm->squad_name));
+		player_set_squad(Player, pm->squad_name);
+		player_set_squad_bitmap(Player, pm->squad_filename, false);
 	}
 
 
-	// wing stuff by Goober5000 ------------------------------------------
-	// the wing name arrays are initialized in ship_level_init
-	if (optional_string("$Starting wing names:"))
-	{
-		stuff_string_list(Starting_wing_names, MAX_STARTING_WINGS);
-	}
-
-	if (optional_string("$Squadron wing names:"))
-	{
-		stuff_string_list(Squadron_wing_names, MAX_SQUADRON_WINGS);
-	}
-
-	if (optional_string("$Team-versus-team wing names:"))
-	{
-		stuff_string_list(TVT_wing_names, MAX_TVT_WINGS);
-	}
-	// end of wing stuff -------------------------------------------------
+	// skipping wing stuff (XWI never lets you command other wings/squads?)
 
 
-	// set up the Num_teams variable accoriding to the game_type variable'
+	// XWI missions are always single player
 	Num_teams = 1;				// assume 1
 
-								// multiplayer team v. team games have two teams.  If we have three teams, we need to use
-								// a new mission mode!
-	if ((pm->game_type & MISSION_TYPE_MULTI) && (pm->game_type & MISSION_TYPE_MULTI_TEAMS)) {
-		Num_teams = 2;
-	}
-
-	// Goober5000 - made this into a function since we use much the same technique for the briefing background
-	parse_custom_bitmap("$Load Screen 640:", "$Load Screen 1024:", pm->loading_screen[GR_640], pm->loading_screen[GR_1024]);
-
+	// VZTODO: load deathstar surface skybox model when specified?
 	strcpy_s(pm->skybox_model, "");
 	if (optional_string("$Skybox Model:"))
 	{
