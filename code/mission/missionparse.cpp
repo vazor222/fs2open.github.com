@@ -888,80 +888,24 @@ void parse_xwi_mission_info(mission *pm, XWingMission *xwim, const char *filenam
 	}
 
 
-	// skipping wing stuff (XWI never lets you command other wings/squads?)
+	// skipping wing stuff (XWI never lets you command other wings/squads)
 
 
 	// XWI missions are always single player
 	Num_teams = 1;				// assume 1
 
-	// VZTODO: load deathstar surface skybox model when specified?
+	// TODO load deathstar surface skybox model when specified?
 	strcpy_s(pm->skybox_model, "");
-	if (optional_string("$Skybox Model:"))
-	{
-		stuff_string(pm->skybox_model, F_NAME, MAX_FILENAME_LEN);
-	}
 
 	vm_set_identity(&pm->skybox_orientation);
-	if (optional_string("+Skybox Orientation:"))
-	{
-		stuff_matrix(&pm->skybox_orientation);
-	}
 
-	if (optional_string("+Skybox Flags:")) {
-		pm->skybox_flags = 0;
-		stuff_int(&pm->skybox_flags);
-	}
-	else {
-		pm->skybox_flags = DEFAULT_NMODEL_FLAGS;
-	}
+	pm->skybox_flags = DEFAULT_NMODEL_FLAGS;
 
+	// TODO set up some AI to match craft AI?
 	// Goober5000 - AI on a per-mission basis
 	The_mission.ai_profile = &Ai_profiles[Default_ai_profile];
-	if (optional_string("$AI Profile:"))
-	{
-		int index;
-		char temp[NAME_LENGTH];
-
-		stuff_string(temp, F_NAME, NAME_LENGTH);
-		index = ai_profile_lookup(temp);
-
-		if (index >= 0)
-			The_mission.ai_profile = &Ai_profiles[index];
-		else
-			WarningEx(LOCATION, "Mission: %s\nUnknown AI profile %s!", pm->name, temp);
-	}
-
-	Assert(The_mission.ai_profile != NULL);
-
-	// Kazan - player use AI at start?
-	if (pm->flags[Mission::Mission_Flags::Player_start_ai])
-		Player_use_ai = 1;
 
 	pm->sound_environment.id = -1;
-	if (optional_string("$Sound Environment:")) {
-		char preset[65] = { '\0' };
-		stuff_string(preset, F_NAME, sizeof(preset) - 1);
-
-		int preset_id = ds_eax_get_preset_id(preset);
-
-		if (preset_id >= 0) {
-			sound_env_get(&pm->sound_environment, preset_id);
-		}
-
-		// NOTE: values will be clamped properly when the effect is actually set
-
-		if (optional_string("+Volume:")) {
-			stuff_float(&pm->sound_environment.volume);
-		}
-
-		if (optional_string("+Damping:")) {
-			stuff_float(&pm->sound_environment.damping);
-		}
-
-		if (optional_string("+Decay Time:")) {
-			stuff_float(&pm->sound_environment.decay);
-		}
-	}
 }
 
 void parse_player_info(mission *pm)
@@ -5840,6 +5784,21 @@ int parse_xwi_mission(const char *filename, mission *pm, int flags)
 	parse_mission_setup();
 
 	parse_xwi_mission_info(pm, m, filename);
+
+	Current_file_checksum = netmisc_calc_checksum(pm, MISSION_CHECKSUM_SIZE);
+
+	if (flags & MPF_ONLY_MISSION_INFO)
+		return 0;
+
+	// some of these are commented out because XWI files don't have cutscenes, etc.
+	//parse_xwi_plot_info(pm);
+	//parse_xwi_variables();
+	//parse_xwi_briefing_info(pm);	// TODO: obsolete code, keeping so we don't obsolete existing mission files
+	pm->cutscenes.clear();  //parse_xwi_cutscenes(pm);
+	fiction_viewer_reset();  //parse_xwi_fiction(pm);
+	cmd_brief_reset();  //parse_xwi_cmd_briefs(pm);
+	brief_reset();  //parse_xwi_briefing(pm, flags);  // VZTODO: default briefing?
+	debrief_reset();  //parse_xwi_debriefing_new(pm);  // VZTODO: default debriefing?
 
 	// VZTODO
 
