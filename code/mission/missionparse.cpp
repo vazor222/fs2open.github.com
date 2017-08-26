@@ -790,8 +790,6 @@ void parse_mission_info(mission *pm, bool basic = false)
 // vazor222
 void parse_xwi_mission_info(mission *pm, XWingMission *xwim, const char *filename, bool basic = false)
 {
-	char game_string[NAME_LENGTH];
-
 	// XWI file version is checked on load, just use latest here
 	pm->version = MISSION_VERSION;
 
@@ -1695,6 +1693,36 @@ void parse_briefing(mission *pm, int flags)
 
 	if ( nt != Num_teams )
 		Error(LOCATION, "Not enough briefings in mission file.  There are %d teams and only %d briefings.", Num_teams, nt );
+}
+
+
+
+/**
+* Set up minimal xwi briefing
+*
+* NOTE: This updates the global Briefing struct with all the data necessary to drive the briefing
+*/
+void setup_xwi_briefing(mission *pm, int flags)
+{
+	brief_stage *bs;
+	briefing *bp;
+
+	brief_reset();
+
+	bp = &Briefings[0];
+
+	bp->num_stages = 1;
+
+	bs = &bp->stages[0];
+	bs->text = "Prepare for the next xwing mission!";
+	strcpy_s(bs->voice, "none.wav");
+	vm_vec_zero(&bs->camera_pos);
+	bs->camera_orient = SCALE_IDENTITY_VECTOR;
+	bs->camera_time = 500;
+	bs->num_lines = 0;
+	bs->num_icons = 0;
+	bs->flags = 0;
+	bs->formula = Locked_sexp_true;
 }
 
 /**
@@ -5797,8 +5825,8 @@ int parse_xwi_mission(const char *filename, mission *pm, int flags)
 	pm->cutscenes.clear();  //parse_xwi_cutscenes(pm);
 	fiction_viewer_reset();  //parse_xwi_fiction(pm);
 	cmd_brief_reset();  //parse_xwi_cmd_briefs(pm);
-	brief_reset();  //parse_xwi_briefing(pm, flags);  // VZTODO: default briefing?
-	debrief_reset();  //parse_xwi_debriefing_new(pm);  // VZTODO: default debriefing?
+	setup_xwi_briefing(pm, flags);  // VZTODO: parse .brf file?
+	debrief_reset();  //parse_xwi_debriefing_new(pm);  // VZTODO: default debriefing? then use mission completion message?
 
 	// VZTODO
 
