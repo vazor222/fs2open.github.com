@@ -5825,7 +5825,7 @@ int parse_xwi_mission(const char *filename, mission *pm, int flags)
 	pm->cutscenes.clear();  //parse_xwi_cutscenes(pm);
 	fiction_viewer_reset();  //parse_xwi_fiction(pm);
 	cmd_brief_reset();  //parse_xwi_cmd_briefs(pm);
-	setup_xwi_briefing(pm, flags);  // VZTODO: parse .brf file?
+	setup_xwi_briefing(pm, flags);  // VZTODO: parse .brf file?  python script that might parse .brf files - might look at translating that. https://gist.github.com/lkolbly/de99b551d55038ea50bacadc66ad92f5
 	debrief_reset();  //parse_xwi_debriefing_new(pm);  // VZTODO: default debriefing? then use mission completion message?
 
 	// VZTODO
