@@ -1698,31 +1698,45 @@ void parse_briefing(mission *pm, int flags)
 
 
 /**
-* Set up minimal xwi briefing
+* Set up xwi briefing based on assumed .brf file in the same folder. If .brf is not there, 
+* just use minimal xwi briefing. 
 *
 * NOTE: This updates the global Briefing struct with all the data necessary to drive the briefing
 */
-void setup_xwi_briefing(mission *pm, int flags)
+void setup_xwi_briefing(const char *filename, mission *pm, int flags)
 {
 	brief_stage *bs;
 	briefing *bp;
 
 	brief_reset();
 
+	// load .BRF file, assuming it is in the same folder 
+	SCP_string brfFileName;
+	char *dest = strdup(filename);
+	dest[strlen(filename) - 4] = '\0';
+	sprintf(brfFileName, "%s.BRF", dest);
+	XWingBriefing* xwBrief = XWingBriefing::load(brfFileName.c_str());
+
 	bp = &Briefings[0];
-
-	bp->num_stages = 1;
-
+	bp->num_stages = 1;  // xwing briefings only have one stage
 	bs = &bp->stages[0];
-	bs->text = "Prepare for the next xwing mission!";
-	strcpy_s(bs->voice, "none.wav");
-	vm_vec_zero(&bs->camera_pos);
-	bs->camera_orient = SCALE_IDENTITY_VECTOR;
-	bs->camera_time = 500;
-	bs->num_lines = 0;
-	bs->num_icons = 0;
-	bs->flags = 0;
-	bs->formula = Locked_sexp_true;
+
+	if (xwBrief != NULL)
+	{
+		bs->text = xwBrief->message1;
+	}
+	else
+	{
+		bs->text = "Prepare for the next xwing mission!";
+		strcpy_s(bs->voice, "none.wav");
+		vm_vec_zero(&bs->camera_pos);
+		bs->camera_orient = SCALE_IDENTITY_VECTOR;
+		bs->camera_time = 500;
+		bs->num_lines = 0;
+		bs->num_icons = 0;
+		bs->flags = 0;
+		bs->formula = Locked_sexp_true;
+	}
 }
 
 /**
@@ -5825,7 +5839,7 @@ int parse_xwi_mission(const char *filename, mission *pm, int flags)
 	pm->cutscenes.clear();  //parse_xwi_cutscenes(pm);
 	fiction_viewer_reset();  //parse_xwi_fiction(pm);
 	cmd_brief_reset();  //parse_xwi_cmd_briefs(pm);
-	setup_xwi_briefing(pm, flags);  // VZTODO: parse .brf file?  python script that might parse .brf files - might look at translating that. https://gist.github.com/lkolbly/de99b551d55038ea50bacadc66ad92f5
+	setup_xwi_briefing(filename, pm, flags);  // VZTODO: parse .brf file?  python script that might parse .brf files - might look at translating that. https://gist.github.com/lkolbly/de99b551d55038ea50bacadc66ad92f5
 	debrief_reset();  //parse_xwi_debriefing_new(pm);  // VZTODO: default debriefing? then use mission completion message?
 
 	// VZTODO

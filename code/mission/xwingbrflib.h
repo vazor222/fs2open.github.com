@@ -37,5 +37,7 @@ public:
 	~XWingBriefing();
 
 	static 	XWingBriefing *load(const char *fname);
+
+	std::string message1;
 };
 
