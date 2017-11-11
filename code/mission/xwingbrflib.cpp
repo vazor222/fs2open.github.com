@@ -16,17 +16,6 @@ XWingBriefing::~XWingBriefing()
 }
 
 
-#pragma pack(push, 1)
-
-struct xwi_brf_header {
-	short version;
-	short icon_count;
-	short coordinate_set_count;
-};
-
-#pragma pack(pop)
-
-
 XWingBriefing *XWingBriefing::load(const char *fname)
 {
 	FILE *f = fopen(fname, "rb");
@@ -39,10 +28,16 @@ XWingBriefing *XWingBriefing::load(const char *fname)
 	fread(data, len, 1, f);
 	fclose(f);
 
+	// parse header
 	struct xwi_brf_header *h = (struct xwi_brf_header *)data;
 	if (h->version != 2)
 		return NULL;
 
 	XWingBriefing *b = new XWingBriefing();
+
+	// h->icon_count == numShips
+	b->ships = *new std::vector<xwi_brf_ship>(h->icon_count);
+
 	return b;
 }
+

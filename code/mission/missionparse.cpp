@@ -1723,7 +1723,9 @@ void setup_xwi_briefing(const char *filename, mission *pm, int flags)
 
 	if (xwBrief != NULL)
 	{
-		bs->text = xwBrief->message1;
+		bs->text = xwBrief->message1;  // this?
+		bs->text = xwBrief->ships[2].designation;  // or this?
+		bs->num_icons = xwBrief->header.icon_count;  // VZTODO is this the right place to store this?
 	}
 	else
 	{
